@@ -15,63 +15,63 @@
 
 bool updateView(GameModel &model)
 {
-    if (WindowShouldClose())
-        return false;
+	if (WindowShouldClose())
+		return false;
 
-    if (model.gameOver)
-    {
-        if (IsMouseButtonPressed(0))
-        {
-            if (isMousePointerOverPlayBlackButton())
-            {
-                model.humanPlayer = PLAYER_BLACK;
+	if (model.gameOver)
+	{
+		if (IsMouseButtonPressed(0))
+		{
+			if (isMousePointerOverPlayBlackButton())
+			{
+				model.humanPlayer = PLAYER_BLACK;
 
-                startModel(model);
-            }
-            else if (isMousePointerOverPlayWhiteButton())
-            {
-                model.humanPlayer = PLAYER_WHITE;
+				startModel(model);
+			}
+			else if (isMousePointerOverPlayWhiteButton())
+			{
+				model.humanPlayer = PLAYER_WHITE;
 
-                startModel(model);
-            }
-        }
-    }
-    else if (model.currentPlayer == model.humanPlayer)
-    {
-        if (IsMouseButtonPressed(0))
-        {
-            // Human player
-            Square square = getSquareOnMousePointer();
+				startModel(model);
+			}
+		}
+	}
+	else if (model.currentPlayer == model.humanPlayer)
+	{
+		if (IsMouseButtonPressed(0))
+		{
+			// Human player
+			Square square = getSquareOnMousePointer();
 
-            if (isSquareValid(square))
-            {
-                Moves validMoves;
-                getValidMoves(model, validMoves);
+			if (isSquareValid(square))
+			{
+				Moves validMoves;
+				getValidMoves(model, validMoves);
 
-                // Play move if valid
-                for (auto move : validMoves)
-                {
-                    if ((square.x == move.x) &&
-                        (square.y == move.y))
-                        playMove(model, square);
-                }
-            }
-        }
-    }
-    else
-    {
-        // AI player
-        Square square = getBestMove(model);
+				// Play move if valid
+				for (auto move : validMoves)
+				{
+					if ((square.x == move.x) &&
+						(square.y == move.y))
+						playMove(model, square);
+				}
+			}
+		}
+	}
+	else
+	{
+		// AI player
+		Square square = getBestMove(model);
 
-        playMove(model, square);
-    }
+		playMove(model, square);
+	}
 
-    if ((IsKeyDown(KEY_LEFT_ALT) ||
-         IsKeyDown(KEY_RIGHT_ALT)) &&
-        IsKeyPressed(KEY_ENTER))
-        ToggleFullscreen();
+	if ((IsKeyDown(KEY_LEFT_ALT) ||
+		IsKeyDown(KEY_RIGHT_ALT)) &&
+		IsKeyPressed(KEY_ENTER))
+		ToggleFullscreen();
 
-    drawView(model);
+	drawView(model);
 
-    return true;
+	return true;
 }

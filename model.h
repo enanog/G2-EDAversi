@@ -15,40 +15,40 @@
 
 enum Player
 {
-    PLAYER_BLACK,
-    PLAYER_WHITE,
+	PLAYER_BLACK,
+	PLAYER_WHITE,
 };
 
 enum Piece
 {
-    PIECE_EMPTY,
-    PIECE_BLACK,
-    PIECE_WHITE,
+	PIECE_EMPTY,
+	PIECE_BLACK,
+	PIECE_WHITE,
 };
 
 struct Square
 {
-    int x;
-    int y;
+	int x;
+	int y;
 };
 
-#define GAME_INVALID_SQUARE \
-    {                       \
-        -1, -1              \
-    }
+#define GAME_INVALID_SQUARE		\
+	{				\
+		-1, -1			\
+	}
 
 struct GameModel
 {
-    bool gameOver;
+	bool gameOver;
 
-    Player currentPlayer;
+	Player currentPlayer;
 
-    double playerTime[2];
-    double turnTimer;
+	double playerTime[2];
+	double turnTimer;
 
-    Piece board[BOARD_SIZE][BOARD_SIZE];
+	Piece board[BOARD_SIZE][BOARD_SIZE];
 
-    Player humanPlayer;
+	Player humanPlayer;
 };
 
 typedef std::vector<Square> Moves;
