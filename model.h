@@ -1,7 +1,12 @@
 /**
  * @brief Implements the Reversi game model
  * @author Marc S. Ressl
- *
+ * @modified:
+ *			Agustin Valenzuela,
+ *			Alex Petersen,
+ *			Dylan Frigerio,
+ *			Enzo Fernadez Rosas
+ * 
  * @copyright Copyright (c) 2023-2024
  */
 
@@ -14,18 +19,33 @@
 
 #define BOARD_SIZE 8
 
-// (0, 0) -> Top-Left
-// (7, 7) -> Bottom-Right
+ // Board coordinate mapping:
+ // (0, 0) -> Top-Left
+ // (7, 7) -> Bottom-Right
 
+/**
+ * @brief Converts (x,y) coordinates into a bit index (0–63).
+ */
 #define GET_SQUARE_BIT_INDEX(x, y) ( (x) + ((y) << 3) )
-#define SET_BIT(bitmap, n) ( (bitmap) |= (1ULL << (n)) )
-#define GET_BIT(bitmap, n) ( ((bitmap) >> (n)) & 1ULL )
-#define SET_BIT(bitmap, n) ( (bitmap) |= (1ULL << (n)) )
-#define CLEAR_BIT(bitmap, n) ( (bitmap) &= ~(1ULL << (n)) )
-#define TOGGLE_BIT(bitmap, n) ( (bitmap) ^= (1ULL << (n)) )
-#define TOGGLE_MASK(bitmap, mask) ( (bitmap) ^= mask )
-#define TOGGLE_PIECE_COLOR(board, n) TOGGLE_BIT((board).black, (n)) ; TOGGLE_BIT((board).white, (n))
 
+/**
+ * @brief Sets a bit in a bitboard.
+ */
+#define SET_BIT(bitmap, n) ( (bitmap) |= (1ULL << (n)) )
+
+/**
+ * @brief Retrieves a bit from a bitboard.
+ */
+#define GET_BIT(bitmap, n) ( ((bitmap) >> (n)) & 1ULL )
+
+/**
+ * @brief Clears a bit in a bitboard.
+ */
+#define CLEAR_BIT(bitmap, n) ( (bitmap) &= ~(1ULL << (n)) )
+
+/**
+ * @brief Represents a square position in 2D coordinates.
+ */
 typedef struct
 {
 	int8_t x;
@@ -34,6 +54,9 @@ typedef struct
 
 #define GAME_INVALID_SQUARE {(int8_t)-1, (int8_t)-1}
 
+/**
+ * @brief State of a square on the board.
+ */
 typedef enum
 {
 	SQUARE_BLACK,
@@ -41,18 +64,27 @@ typedef enum
 	SQUARE_EMPTY
 } SquareState_t;
 
+/**
+ * @brief Identifies player color (mapped to square states).
+ */
 typedef enum
 {
 	PLAYER_BLACK = SQUARE_BLACK,
 	PLAYER_WHITE = SQUARE_WHITE
 } PlayerColor_t;
 
+/**
+ * @brief Holds two bitboards (black and white pieces).
+ */
 typedef struct
 {
 	uint64_t black;
 	uint64_t white;
 } Board_t;
 
+/**
+* @brief Main game model storing board, players, and timers.
+*/
 struct GameModel
 {
 	bool gameOver;

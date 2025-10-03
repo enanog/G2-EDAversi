@@ -1,7 +1,12 @@
 /**
  * @brief Implements the Reversi game view
  * @author Marc S. Ressl
- *
+ * @modified:
+ *			Agustin Valenzuela,
+ *			Alex Petersen,
+ *			Dylan Frigerio,
+ *			Enzo Fernadez Rosas
+ * 
  * @copyright Copyright (c) 2023-2024
  */
 

@@ -1,7 +1,13 @@
 /**
  * @brief Implements the Reversi game model
  * @author Marc S. Ressl
- *
+ * @modified: 
+ *			Agustin Valenzuela,
+ *			Alex Petersen,
+ *			Dylan Frigerio,
+ *			Enzo Fernadez Rosas
+ * 
+ * 
  * @copyright Copyright (c) 2023-2024
  */
 
@@ -12,6 +18,7 @@
 #include "model.h"
 #include <stdint.h>
 
+ // Bitboard masks for board edges
 #define FILE_A 0x0101010101010101ULL // Left column	(x=0)
 #define FILE_H 0x8080808080808080ULL // Right column (x=7)
 #define RANK_1 0x00000000000000FFULL // Top row		(y=0)
@@ -23,6 +30,7 @@ namespace
 {
 	enum { NW, N, NE, W, E, SW, S, SE };
 
+	// Direction offsets for bitboard indexing
 	const int8_t DIRECTIONS[8] =
 	{
 		9,    8,    7,
@@ -30,6 +38,7 @@ namespace
 	   -7,   -8,   -9
 	};
 
+	// Initial four pieces setup in the board center
 	const int8_t initialPosition[2][2] =
 	{
 		{
@@ -42,7 +51,11 @@ namespace
 		}
 	};
 
-
+	/**
+	 * @brief Returns the index (0–63) of the least significant set bit in a bitboard.
+	 *
+	 * This is used to scan for the next occupied or empty square efficiently.
+	 */
 	inline int8_t bitScanForward(uint64_t bb) {
 #if defined(_MSC_VER)  // MSVC (Windows)
 		unsigned long idx;
@@ -58,6 +71,12 @@ namespace
 #endif
 	}
 
+	/**
+	 * @brief Converts a bit index (0–63) to a 2D board coordinate (Square_t).
+	 *
+	 * @param n Bit index.
+	 * @return Board coordinates (x, y).
+	 */
 	inline Square_t transformBitToSquare(int8_t n)
 	{
 		Square_t position;
@@ -66,6 +85,15 @@ namespace
 		return position;
 	}
 
+	/**
+	 * @brief Checks whether a square index is valid for movement in a given direction.
+	 *
+	 * Prevents moves that would wrap around the board edges.
+	 *
+	 * @param pos Square index (0–63).
+	 * @param dir Direction index.
+	 * @return True if the square is valid for stepping, false otherwise.
+	 */
 	bool isSquareValid(int8_t pos, int dir)
 	{
 		if (pos < 0 || pos >= 64) return false;
@@ -79,6 +107,20 @@ namespace
 		return true;
 	}
 
+	/**
+	 * @brief Calculates the discs that would be flipped in one direction.
+	 *
+	 * Iterates along the given direction until a player disc is found,
+	 * collecting opponent discs along the way. If the line is not closed,
+	 * no discs are flipped.
+	 *
+	 * @param player Bitboard of current player.
+	 * @param opponent Bitboard of opponent.
+	 * @param startPos Starting empty square index.
+	 * @param step Direction step offset.
+	 * @param dir Direction index.
+	 * @return Bitboard with flipped discs, or 0 if none.
+	 */
 	uint64_t getFlipsInDirection(uint64_t player, uint64_t opponent, int8_t startPos, int step, int dir)
 	{
 		uint64_t flips = 0;
@@ -107,6 +149,15 @@ namespace
 		return 0ULL; 
 	}
 
+	/**
+	 * @brief Computes a bitboard with all valid moves for the current player.
+	 *
+	 * Scans all empty squares and checks if placing a piece there
+	 * would flip at least one opponent disc.
+	 *
+	 * @param model Game model.
+	 * @return Bitboard of valid moves.
+	 */
 	uint64_t getValidMovesBitmap(GameModel& model)
 	{
 		PlayerColor_t currentPlayer = getCurrentPlayer(model);
@@ -244,12 +295,9 @@ void getValidMoves(GameModel &model, Moves& validMoves)
 {
 	for (int n = 0; n < (sizeof(model.board.black) * 8); n++)
 	{
-		// +++ TEST
-		// Lists all empty squares...
 		uint64_t validMovesBitmap = getValidMovesBitmap(model);
 		if (GET_BIT(validMovesBitmap, n))
 			validMoves.push_back(transformBitToSquare(n));
-		// --- TEST
 	}
 }
 
@@ -262,6 +310,7 @@ bool playMove(GameModel &model, int8_t move)
 
 	setBoardPiece(model, move, piece);
 
+	// Flip discs in all directions
 	for (int dir = 0; dir < DIRECTION_COUNT; dir++)
 	{
 		uint64_t flips = getFlipsInDirection(player, opponent, move, DIRECTIONS[dir], dir);
@@ -291,7 +340,7 @@ bool playMove(GameModel &model, int8_t move)
 		? PLAYER_BLACK
 		: PLAYER_WHITE;
 
-	// Game over?
+	// Check if next player has valid moves
 	Moves validMoves;
 	getValidMoves(model, validMoves);
 
