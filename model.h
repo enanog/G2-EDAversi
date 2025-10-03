@@ -8,64 +8,75 @@
 #ifndef MODEL_H
 #define MODEL_H
 
+#include <stdint.h>
 #include <cstdint>
 #include <vector>
 
 #define BOARD_SIZE 8
 
-enum Player
-{
-	PLAYER_BLACK,
-	PLAYER_WHITE,
-};
+#define GET_SQUARE_BIT_INDEX(x, y) ( (x) + ((y) << 3) )
+#define SET_BIT(bitmap, n) ( (bitmap) |= (1ULL << (n)) )
+#define GET_BIT(bitmap, n) ( ((bitmap) >> (n)) & 1ULL )
+#define SET_BIT(bitmap, n) ( (bitmap) |= (1ULL << (n)) )
+#define CLEAR_BIT(bitmap, n) ( (bitmap) &= ~(1ULL << (n)) )
+#define TOGGLE_BIT(bitmap, n) ( (bitmap) ^= (1ULL << (n)) )
+#define TOGGLE_MASK(bitmap, mask) ( (bitmap) ^= mask )
+#define TOGGLE_PIECE_COLOR(board, n) TOGGLE_BIT((board).black, (n)) ; TOGGLE_BIT((board).white, (n))
 
-enum Piece
+typedef struct
 {
-	PIECE_EMPTY,
-	PIECE_BLACK,
-	PIECE_WHITE,
-};
+	int8_t x;
+	int8_t y;
+} Square_t;
 
-struct Square
+#define GAME_INVALID_SQUARE {(int8_t)-1, (int8_t)-1}
+
+typedef enum
 {
-	int x;
-	int y;
-};
+	SQUARE_BLACK,
+	SQUARE_WHITE,
+	SQUARE_EMPTY
+} SquareState_t;
 
-#define GAME_INVALID_SQUARE		\
-	{				\
-		-1, -1			\
-	}
+typedef enum
+{
+	PLAYER_BLACK = SQUARE_BLACK,
+	PLAYER_WHITE = SQUARE_WHITE
+} PlayerColor_t;
+
+typedef struct
+{
+	uint64_t black;
+	uint64_t white;
+} Board_t;
 
 struct GameModel
 {
 	bool gameOver;
 
-	Player currentPlayer;
-
 	double playerTime[2];
 	double turnTimer;
 
-	Piece board[BOARD_SIZE][BOARD_SIZE];
-
-	Player humanPlayer;
+	Board_t board;
+	PlayerColor_t currentPlayer;
+	PlayerColor_t humanPlayer;
 };
 
-typedef std::vector<Square> Moves;
+typedef std::vector<Square_t> Moves;
 
 /**
  * @brief Initializes a game model.
  *
  * @param model The game model.
  */
-void initModel(GameModel &model);
+void initModel(GameModel& model);
 
 /**
  * @brief Starts a game.
  *
  * @param model The game model.
  */
-void startModel(GameModel &model);
+void startModel(GameModel& model);
 
 /**
  * @brief Returns the model's current player.
@@ -73,7 +84,7 @@ void startModel(GameModel &model);
  * @param model The game model.
  * @return PLAYER_WHITE or PLAYER_BLACK.
  */
-Player getCurrentPlayer(GameModel &model);
+PlayerColor_t getCurrentPlayer(GameModel& model);
 
 /**
  * @brief Returns the model's current score.
@@ -82,7 +93,7 @@ Player getCurrentPlayer(GameModel &model);
  * @param player The player (PLAYER_WHITE or PLAYER_BLACK).
  * @return The score.
  */
-int getScore(GameModel &model, Player player);
+int getScore(GameModel& model, PlayerColor_t player);
 
 /**
  * @brief Returns the game timer for a player.
@@ -91,7 +102,7 @@ int getScore(GameModel &model, Player player);
  * @param player The player (PLAYER_WHITE or PLAYER_BLACK).
  * @return The time in seconds.
  */
-double getTimer(GameModel &model, Player player);
+double getTimer(GameModel& model, PlayerColor_t player);
 
 /**
  * @brief Return a model's piece.
@@ -100,7 +111,7 @@ double getTimer(GameModel &model, Player player);
  * @param square The square.
  * @return The piece at the square.
  */
-Piece getBoardPiece(GameModel &model, Square square);
+SquareState_t getBoardPiece(GameModel& model, int8_t n);
 
 /**
  * @brief Sets a model's piece.
@@ -109,7 +120,7 @@ Piece getBoardPiece(GameModel &model, Square square);
  * @param square The square.
  * @param piece The piece to be set
  */
-void setBoardPiece(GameModel &model, Square square, Piece piece);
+void setBoardPiece(GameModel& model, int8_t n, SquareState_t piece);
 
 /**
  * @brief Checks whether a square is within the board.
@@ -117,7 +128,7 @@ void setBoardPiece(GameModel &model, Square square, Piece piece);
  * @param square The square.
  * @return True or false.
  */
-bool isSquareValid(Square square);
+bool isSquareValid(Square_t square);
 
 /**
  * @brief Returns a list of valid moves for the current player.
@@ -125,7 +136,7 @@ bool isSquareValid(Square square);
  * @param model The game model.
  * @param validMoves A list that receives the valid moves.
  */
-void getValidMoves(GameModel &model, Moves &validMoves);
+void getValidMoves(GameModel& model, Moves& validMoves);
 
 /**
  * @brief Plays a move.
@@ -134,6 +145,6 @@ void getValidMoves(GameModel &model, Moves &validMoves);
  * @param square The move.
  * @return Move accepted.
  */
-bool playMove(GameModel &model, Square move);
+bool playMove(GameModel& model, int8_t move);
 
 #endif

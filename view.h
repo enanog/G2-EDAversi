@@ -32,7 +32,7 @@ void drawView(GameModel &model);
  *
  * @return The square.
  */
-Square getSquareOnMousePointer();
+Square_t getSquareOnMousePointer();
 
 /**
  * @brief Indicates whether the mouse pointer is over the "Play black" button.

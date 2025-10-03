@@ -10,7 +10,7 @@
 #include "ai.h"
 #include "controller.h"
 
-Square getBestMove(GameModel &model)
+Square_t getBestMove(GameModel &model)
 {
 	// To-do: your code goes here...
 

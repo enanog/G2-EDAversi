@@ -15,6 +15,6 @@
  *
  * @return The best move.
  */
-Square getBestMove(GameModel &model);
+Square_t getBestMove(GameModel &model);
 
 #endif

@@ -183,7 +183,7 @@ void drawView(GameModel &model)
 	{
 		for (int x = 0; x < BOARD_SIZE; x++)
 		{
-			Square square = {x, y};
+			Square_t square = {x, y};
 
 			Vector2 position = {
 				BOARD_X + (float)square.x * SQUARE_SIZE,
@@ -198,13 +198,13 @@ void drawView(GameModel &model)
 				6,
 				DARKGREEN);
 
-			Piece piece = getBoardPiece(model, square);
+			SquareState_t piece = getBoardPiece(model, GET_SQUARE_BIT_INDEX(square.x, square.y));
 
-			if (piece != PIECE_EMPTY)
+			if (piece != SQUARE_EMPTY)
 				DrawCircle((int)position.x + PIECE_CENTER,
 						(int)position.y + PIECE_CENTER,
 						PIECE_RADIUS,
-						(piece == PIECE_WHITE) ? WHITE : BLACK);
+						(piece == SQUARE_WHITE) ? WHITE : BLACK);
 		}
 	}
 
@@ -247,10 +247,10 @@ void drawView(GameModel &model)
 	EndDrawing();
 }
 
-Square getSquareOnMousePointer()
+Square_t getSquareOnMousePointer()
 {
 	Vector2 mousePosition = GetMousePosition();
-	Square square = {(int)floor((mousePosition.x - BOARD_X) / SQUARE_SIZE),
+	Square_t square = {(int)floor((mousePosition.x - BOARD_X) / SQUARE_SIZE),
 			(int)floor((mousePosition.y - BOARD_Y) / SQUARE_SIZE)};
 
 	if (isSquareValid(square))

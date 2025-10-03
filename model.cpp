@@ -7,7 +7,32 @@
 
 #include "raylib.h"
 
+#include <iostream>
+#include <bitset>
 #include "model.h"
+
+const int8_t initialPosition[2][2] = 
+{
+	{
+		GET_SQUARE_BIT_INDEX(BOARD_SIZE / 2 - 1, BOARD_SIZE / 2),
+		GET_SQUARE_BIT_INDEX(BOARD_SIZE / 2, BOARD_SIZE / 2 - 1)
+	},
+	{
+		GET_SQUARE_BIT_INDEX(BOARD_SIZE / 2 - 1, BOARD_SIZE / 2 - 1),
+		GET_SQUARE_BIT_INDEX(BOARD_SIZE / 2 , BOARD_SIZE / 2 ) 
+	}
+};
+
+namespace
+{
+	inline Square_t transformBitToSquare(int8_t n) 
+	{
+		Square_t position;
+		position.x = n & 7;
+		position.y = n >> 3;
+		return position;
+	}
+}
 
 void initModel(GameModel &model)
 {
@@ -16,11 +41,15 @@ void initModel(GameModel &model)
 	model.playerTime[0] = 0;
 	model.playerTime[1] = 0;
 
-	memset(model.board, PIECE_EMPTY, sizeof(model.board));
+	model.board.black = 0;
+	model.board.white = 0;
 }
 
 void startModel(GameModel &model)
 {
+	model.board.black = 0;
+	model.board.white = 0;
+
 	model.gameOver = false;
 
 	model.currentPlayer = PLAYER_BLACK;
@@ -29,36 +58,48 @@ void startModel(GameModel &model)
 	model.playerTime[1] = 0;
 	model.turnTimer = GetTime();
 
-	memset(model.board, PIECE_EMPTY, sizeof(model.board));
-	model.board[BOARD_SIZE / 2 - 1][BOARD_SIZE / 2 - 1] = PIECE_WHITE;
-	model.board[BOARD_SIZE / 2 - 1][BOARD_SIZE / 2] = PIECE_BLACK;
-	model.board[BOARD_SIZE / 2][BOARD_SIZE / 2] = PIECE_WHITE;
-	model.board[BOARD_SIZE / 2][BOARD_SIZE / 2 - 1] = PIECE_BLACK;
+	SET_BIT(model.board.black, initialPosition[0][0]);
+	SET_BIT(model.board.black, initialPosition[0][1]);
+	SET_BIT(model.board.white, initialPosition[1][0]);
+	SET_BIT(model.board.white, initialPosition[1][1]);
+
+	std::cout << "Black: " << std::bitset<64>(model.board.black) << std::endl;
+	std::cout << "White: " << std::bitset<64>(model.board.white) << std::endl;
+	printf("%d %d %d %d", GET_SQUARE_BIT_INDEX(BOARD_SIZE / 2 - 1, BOARD_SIZE / 2),
+		GET_SQUARE_BIT_INDEX(BOARD_SIZE / 2, BOARD_SIZE / 2 - 1), 
+
+		GET_SQUARE_BIT_INDEX(BOARD_SIZE / 2 - 1, BOARD_SIZE / 2 - 1),
+		GET_SQUARE_BIT_INDEX(BOARD_SIZE / 2, BOARD_SIZE / 2));
 }
 
-Player getCurrentPlayer(GameModel &model)
+PlayerColor_t getCurrentPlayer(GameModel &model)
 {
 	return model.currentPlayer;
 }
 
-int getScore(GameModel &model, Player player)
+int getScore(GameModel &model, PlayerColor_t player)
 {
 	int score = 0;
 
-	for (int y = 0; y < BOARD_SIZE; y++)
-		for (int x = 0; x < BOARD_SIZE; x++)
-		{
-			if (((model.board[y][x] == PIECE_WHITE) &&
-				(player == PLAYER_WHITE)) ||
-				((model.board[y][x] == PIECE_BLACK) &&
-				(player == PLAYER_BLACK)))
-				score++;
-		}
+	uint64_t bitmap = (player == PLAYER_BLACK) ? model.board.black : model.board.white;
 
-	return score;
+#ifdef _MSC_VER
+	return __popcnt64(bitmap);
+#elif defined(__GNUC__) || defined(__clang__)
+	return __builtin_popcountll(bitmap);
+#else
+	// Fallback: Brian Kernighan
+	int count = 0;
+	while (bitmap)
+	{
+		bitmap &= (bitmap - 1);
+		count++;
+	}
+	return count;
+#endif
 }
 
-double getTimer(GameModel &model, Player player)
+double getTimer(GameModel &model, PlayerColor_t player)
 {
 	double turnTime = 0;
 
@@ -68,48 +109,59 @@ double getTimer(GameModel &model, Player player)
 	return model.playerTime[player] + turnTime;
 }
 
-Piece getBoardPiece(GameModel &model, Square square)
+SquareState_t getBoardPiece(GameModel &model, int8_t n)
 {
-	return model.board[square.y][square.x];
+//	if (!isSquareValid(square))
+//		return PIECE_EMPTY;
+	return (GET_BIT(model.board.black, n) ? SQUARE_BLACK :
+		   (GET_BIT(model.board.white, n) ? SQUARE_WHITE : SQUARE_EMPTY));
 }
 
-void setBoardPiece(GameModel &model, Square square, Piece piece)
+void setBoardPiece(GameModel &model, int8_t n, SquareState_t piece)
 {
-	model.board[square.y][square.x] = piece;
+	if(piece == SQUARE_BLACK)
+	{
+		SET_BIT(model.board.black, n);
+		CLEAR_BIT(model.board.white, n);
+	}
+	else if(piece == SQUARE_WHITE)
+	{
+		SET_BIT(model.board.white, n);
+		CLEAR_BIT(model.board.black, n);
+	}
+	else // if(piece == SQUARE_EMPTY)
+	{
+		CLEAR_BIT(model.board.black, n);
+		CLEAR_BIT(model.board.white, n);
+	}
 }
 
-bool isSquareValid(Square square)
+bool isSquareValid(Square_t square)
 {
 	return (square.x >= 0) &&
-		(square.x < BOARD_SIZE) &&
-		(square.y >= 0) &&
-		(square.y < BOARD_SIZE);
+		   (square.x < BOARD_SIZE) &&
+		   (square.y >= 0) &&
+		   (square.y < BOARD_SIZE);
 }
 
 void getValidMoves(GameModel &model, Moves &validMoves)
 {
 	// To-do: your code goes here...
 
-	for (int y = 0; y < BOARD_SIZE; y++)
-		for (int x = 0; x < BOARD_SIZE; x++)
-		{
-			Square move = {x, y};
-
-			// +++ TEST
-			// Lists all empty squares...
-			if (getBoardPiece(model, move) == PIECE_EMPTY)
-				validMoves.push_back(move);
-			// --- TEST
-		}
+	for (int n = 0; n < (sizeof(model.board.black) * 8); n++)
+	{
+		// +++ TEST
+		// Lists all empty squares...
+		if (getBoardPiece(model, n) == SQUARE_EMPTY)
+			validMoves.push_back(transformBitToSquare(n));
+		// --- TEST
+	}
 }
 
-bool playMove(GameModel &model, Square move)
+bool playMove(GameModel &model, int8_t move)
 {
 	// Set game piece
-	Piece piece =
-		(getCurrentPlayer(model) == PLAYER_WHITE)
-			? PIECE_WHITE
-			: PIECE_BLACK;
+	SquareState_t piece = (getCurrentPlayer(model) == PLAYER_BLACK)? SQUARE_BLACK : SQUARE_WHITE;
 
 	setBoardPiece(model, move, piece);
 
@@ -138,8 +190,8 @@ bool playMove(GameModel &model, Square move)
 				? PLAYER_BLACK
 				: PLAYER_WHITE;
 
-		Moves validMoves;
-		getValidMoves(model, validMoves);
+		//Moves validMoves;
+		//getValidMoves(model, validMoves);
 
 		if (validMoves.size() == 0)
 			model.gameOver = true;
