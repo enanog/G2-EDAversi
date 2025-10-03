@@ -14,6 +14,9 @@
 
 #define BOARD_SIZE 8
 
+// (0, 0) -> Top-Left
+// (7, 7) -> Bottom-Right
+
 #define GET_SQUARE_BIT_INDEX(x, y) ( (x) + ((y) << 3) )
 #define SET_BIT(bitmap, n) ( (bitmap) |= (1ULL << (n)) )
 #define GET_BIT(bitmap, n) ( ((bitmap) >> (n)) & 1ULL )
@@ -128,7 +131,7 @@ void setBoardPiece(GameModel& model, int8_t n, SquareState_t piece);
  * @param square The square.
  * @return True or false.
  */
-bool isSquareValid(Square_t square);
+bool isSquareValid(int8_t pos);
 
 /**
  * @brief Returns a list of valid moves for the current player.

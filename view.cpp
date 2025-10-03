@@ -198,6 +198,17 @@ void drawView(GameModel &model)
 				6,
 				DARKGREEN);
 
+			// Draw valid moves
+			Moves validMoves;
+			getValidMoves(model, validMoves);
+			for (const auto pair : validMoves)
+			{
+				DrawCircle((int)(BOARD_X + (float)pair.x * SQUARE_SIZE) + PIECE_CENTER,
+						   (int)(BOARD_Y + (float)pair.y * SQUARE_SIZE) + PIECE_CENTER,
+						   PIECE_RADIUS / 4,
+						   RED);
+			}
+
 			SquareState_t piece = getBoardPiece(model, GET_SQUARE_BIT_INDEX(square.x, square.y));
 
 			if (piece != SQUARE_EMPTY)
@@ -252,8 +263,8 @@ Square_t getSquareOnMousePointer()
 	Vector2 mousePosition = GetMousePosition();
 	Square_t square = {(int)floor((mousePosition.x - BOARD_X) / SQUARE_SIZE),
 			(int)floor((mousePosition.y - BOARD_Y) / SQUARE_SIZE)};
-
-	if (isSquareValid(square))
+	int8_t n = GET_SQUARE_BIT_INDEX(square.x, square.y);
+	if (isSquareValid(n))
 		return square;
 	else
 		return GAME_INVALID_SQUARE;

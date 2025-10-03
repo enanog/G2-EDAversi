@@ -42,18 +42,18 @@ bool updateView(GameModel &model)
 		{
 			// Human player
 			Square_t square = getSquareOnMousePointer();
+			int8_t n = GET_SQUARE_BIT_INDEX(square.x, square.y);
 
-			if (isSquareValid(square))
+			if (isSquareValid(n))
 			{
 				Moves validMoves;
 				getValidMoves(model, validMoves);
-
 				// Play move if valid
 				for (auto move : validMoves)
 				{
 					if ((square.x == move.x) &&
 						(square.y == move.y))
-						playMove(model, GET_SQUARE_BIT_INDEX(square.x, square.y));
+						playMove(model, n);
 				}
 			}
 		}
@@ -62,8 +62,9 @@ bool updateView(GameModel &model)
 	{
 		// AI player
 		Square_t square = getBestMove(model);
+		int8_t n = GET_SQUARE_BIT_INDEX(square.x, square.y);
 
-		playMove(model, GET_SQUARE_BIT_INDEX(square.x, square.y));
+		playMove(model, n);
 	}
 
 	if ((IsKeyDown(KEY_LEFT_ALT) ||
