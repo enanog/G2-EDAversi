@@ -1,14 +1,16 @@
 /**
  * @brief Implements the Reversi game AI
  * @author Marc S. Ressl
- * @modified: 
+ * @modified:
  *			Agustin Valenzuela,
  *			Alex Petersen,
  *			Dylan Frigerio,
  *			Enzo Fernadez Rosas
- * 
+ *
  * @copyright Copyright (c) 2023-2024
  */
+
+#include "ai.h"
 
 #include <cstdlib>
 #include <limits>
