@@ -1,32 +1,30 @@
 /**
  * @brief Implements the Reversi game AI
  * @author Marc S. Ressl
- * @modified: 
+ * @modified:
  *			Agustin Valenzuela,
  *			Alex Petersen,
  *			Dylan Frigerio,
  *			Enzo Fernadez Rosas
- * 
+ *
  * @copyright Copyright (c) 2023-2024
  */
 
+#include "ai.h"
+
 #include <cstdlib>
 
-#include "ai.h"
 #include "controller.h"
 
-Square_t getBestMove(GameModel &model)
-{
-	// To-do: your code goes here...
+Square_t getBestMove(GameModel& model) {
+    // To-do: your code goes here...
 
+    // +++ TEST
+    // Returns a random valid move...
+    Moves validMoves;
+    getValidMoves(model, validMoves);
 
-
-	// +++ TEST
-	// Returns a random valid move...
-	Moves validMoves;
-	getValidMoves(model, validMoves);
-
-	int index = rand() % validMoves.size();
-	return validMoves[index];
-	// --- TEST
+    int index = rand() % validMoves.size();
+    return validMoves[index];
+    // --- TEST
 }
