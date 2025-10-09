@@ -6,16 +6,16 @@
  *			Alex Petersen,
  *			Dylan Frigerio,
  *			Enzo Fernadez Rosas
- * 
+ *
  * @copyright Copyright (c) 2023-2024
  */
 
+#include <cmath>
 #include <string>
-
-#include "raylib.h"
 
 #include "controller.h"
 #include "model.h"
+#include "raylib.h"
 
 #define GAME_NAME "EDAversi"
 
@@ -62,16 +62,14 @@
 #define INFO_PLAYWHITE_BUTTON_X INFO_CENTERED_X
 #define INFO_PLAYWHITE_BUTTON_Y (WINDOW_HEIGHT * 7 / 8)
 
-void initView()
-{
-	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, GAME_NAME);
+void initView() {
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, GAME_NAME);
 
-	SetTargetFPS(60);
+    SetTargetFPS(60);
 }
 
-void freeView()
-{
-	CloseWindow();
+void freeView() {
+    CloseWindow();
 }
 
 /**
@@ -81,15 +79,12 @@ void freeView()
  * @param fontSize The font size.
  * @param s The string.
  */
-static void drawCenteredText(Vector2 position,
-				int fontSize,
-				std::string s)
-{
-	DrawText(s.c_str(),
-		(int)position.x - MeasureText(s.c_str(), fontSize) / 2,
-		(int)position.y - fontSize / 2,
-		fontSize,
-		BROWN);
+static void drawCenteredText(Vector2 position, int fontSize, std::string s) {
+    DrawText(s.c_str(),
+             (int)position.x - MeasureText(s.c_str(), fontSize) / 2,
+             (int)position.y - fontSize / 2,
+             fontSize,
+             BROWN);
 }
 
 /**
@@ -98,13 +93,10 @@ static void drawCenteredText(Vector2 position,
  * @param position The center position for the score.
  * @param score The score.
  */
-static void drawScore(std::string label,
-			Vector2 position,
-			int score)
-{
-	std::string s = label + std::to_string(score);
+static void drawScore(std::string label, Vector2 position, int score) {
+    std::string s = label + std::to_string(score);
 
-	drawCenteredText(position, SUBTITLE_FONT_SIZE, s);
+    drawCenteredText(position, SUBTITLE_FONT_SIZE, s);
 }
 
 /**
@@ -113,25 +105,23 @@ static void drawScore(std::string label,
  * @param position The center position for the timer.
  * @param time The number of seconds of the timer.
  */
-static void drawTimer(Vector2 position,
-			double time)
-{
-	int totalSeconds = (int)time;
+static void drawTimer(Vector2 position, double time) {
+    int totalSeconds = (int)time;
 
-	int seconds = totalSeconds % 60;
-	int minutes = totalSeconds / 60;
+    int seconds = totalSeconds % 60;
+    int minutes = totalSeconds / 60;
 
-	std::string s;
+    std::string s;
 
-	if (minutes < 10)
-		s.append("0");
-	s.append(std::to_string(minutes));
-	s.append(":");
-	if (seconds < 10)
-		s.append("0");
-	s.append(std::to_string(seconds));
+    if (minutes < 10)
+        s.append("0");
+    s.append(std::to_string(minutes));
+    s.append(":");
+    if (seconds < 10)
+        s.append("0");
+    s.append(std::to_string(seconds));
 
-	drawCenteredText(position, SUBTITLE_FONT_SIZE, s);
+    drawCenteredText(position, SUBTITLE_FONT_SIZE, s);
 }
 
 /**
@@ -140,20 +130,14 @@ static void drawTimer(Vector2 position,
  * @param position The position of the button
  * @param label The text of the button
  */
-static void drawButton(Vector2 position,
-				std::string label,
-				Color backgroundColor)
-{
-	DrawRectangle(position.x - INFO_BUTTON_WIDTH / 2,
-			position.y - INFO_BUTTON_HEIGHT / 2,
-			INFO_BUTTON_WIDTH,
-			INFO_BUTTON_HEIGHT,
-			backgroundColor);
+static void drawButton(Vector2 position, std::string label, Color backgroundColor) {
+    DrawRectangle(position.x - INFO_BUTTON_WIDTH / 2,
+                  position.y - INFO_BUTTON_HEIGHT / 2,
+                  INFO_BUTTON_WIDTH,
+                  INFO_BUTTON_HEIGHT,
+                  backgroundColor);
 
-	drawCenteredText({position.x,
-				position.y},
-				SUBTITLE_FONT_SIZE,
-				label.c_str());
+    drawCenteredText({position.x, position.y}, SUBTITLE_FONT_SIZE, label.c_str());
 }
 
 /**
@@ -161,128 +145,89 @@ static void drawButton(Vector2 position,
  *
  * @return true or false.
  */
-static bool isMousePointerOverButton(Vector2 position)
-{
-	Vector2 mousePosition = GetMousePosition();
+static bool isMousePointerOverButton(Vector2 position) {
+    Vector2 mousePosition = GetMousePosition();
 
-	return ((mousePosition.x >= (position.x - INFO_BUTTON_WIDTH / 2)) &&
-			(mousePosition.x < (position.x + INFO_BUTTON_WIDTH / 2)) &&
-			(mousePosition.y >= (position.y - INFO_BUTTON_HEIGHT / 2)) &&
-			(mousePosition.y < (position.y + INFO_BUTTON_HEIGHT / 2)));
+    return ((mousePosition.x >= (position.x - INFO_BUTTON_WIDTH / 2)) &&
+            (mousePosition.x < (position.x + INFO_BUTTON_WIDTH / 2)) &&
+            (mousePosition.y >= (position.y - INFO_BUTTON_HEIGHT / 2)) &&
+            (mousePosition.y < (position.y + INFO_BUTTON_HEIGHT / 2)));
 }
 
-void drawView(GameModel &model)
-{
-	BeginDrawing();
+void drawView(GameModel& model) {
+    BeginDrawing();
 
-	ClearBackground(BEIGE);
+    ClearBackground(BEIGE);
 
-	DrawRectangle(
-			OUTERBORDER_X,
-			OUTERBORDER_Y,
-			OUTERBORDER_SIZE,
-			OUTERBORDER_SIZE,
-			BLACK);
+    DrawRectangle(OUTERBORDER_X, OUTERBORDER_Y, OUTERBORDER_SIZE, OUTERBORDER_SIZE, BLACK);
 
-	for (int y = 0; y < BOARD_SIZE; y++)
-	{
-		for (int x = 0; x < BOARD_SIZE; x++)
-		{
-			Square_t square = {x, y};
+    for (int y = 0; y < BOARD_SIZE; y++) {
+        for (int x = 0; x < BOARD_SIZE; x++) {
+            Square_t square = {x, y};
 
-			Vector2 position = {
-				BOARD_X + (float)square.x * SQUARE_SIZE,
-				BOARD_Y + (float)square.y * SQUARE_SIZE};
+            Vector2 position = {BOARD_X + (float)square.x * SQUARE_SIZE,
+                                BOARD_Y + (float)square.y * SQUARE_SIZE};
 
-			DrawRectangleRounded(
-				{position.x + SQUARE_CONTENT_OFFSET,
-				position.y + SQUARE_CONTENT_OFFSET,
-				SQUARE_CONTENT_SIZE,
-				SQUARE_CONTENT_SIZE},
-				0.2F,
-				6,
-				DARKGREEN);
+            DrawRectangleRounded({position.x + SQUARE_CONTENT_OFFSET,
+                                  position.y + SQUARE_CONTENT_OFFSET,
+                                  SQUARE_CONTENT_SIZE,
+                                  SQUARE_CONTENT_SIZE},
+                                 0.2F,
+                                 6,
+                                 DARKGREEN);
 
-			// Draw valid moves
-			Moves validMoves;
-			getValidMoves(model, validMoves);
-			for (const auto pair : validMoves)
-			{
-				DrawCircle((int)(BOARD_X + (float)pair.x * SQUARE_SIZE) + PIECE_CENTER,
-						   (int)(BOARD_Y + (float)pair.y * SQUARE_SIZE) + PIECE_CENTER,
-						   PIECE_RADIUS / 4,
-						   RED);
-			}
+            // Draw valid moves
+            Moves validMoves;
+            getValidMoves(model, validMoves);
+            for (const auto pair : validMoves) {
+                DrawCircle((int)(BOARD_X + (float)pair.x * SQUARE_SIZE) + PIECE_CENTER,
+                           (int)(BOARD_Y + (float)pair.y * SQUARE_SIZE) + PIECE_CENTER,
+                           PIECE_RADIUS / 4,
+                           RED);
+            }
 
-			SquareState_t piece = getBoardPiece(model, GET_SQUARE_BIT_INDEX(square.x, square.y));
+            SquareState_t piece = getBoardPiece(model, GET_SQUARE_BIT_INDEX(square.x, square.y));
 
-			if (piece != SQUARE_EMPTY)
-				DrawCircle((int)position.x + PIECE_CENTER,
-						(int)position.y + PIECE_CENTER,
-						PIECE_RADIUS,
-						(piece == SQUARE_WHITE) ? WHITE : BLACK);
-		}
-	}
+            if (piece != SQUARE_EMPTY)
+                DrawCircle((int)position.x + PIECE_CENTER,
+                           (int)position.y + PIECE_CENTER,
+                           PIECE_RADIUS,
+                           (piece == SQUARE_WHITE) ? WHITE : BLACK);
+        }
+    }
 
-	drawScore("Black score: ",
-			{INFO_CENTERED_X,
-			INFO_WHITE_SCORE_Y},
-			getScore(model,
-			PLAYER_BLACK));
-	drawTimer({INFO_CENTERED_X,
-			INFO_WHITE_TIME_Y},
-			getTimer(model,
-				PLAYER_BLACK));
-	drawCenteredText({INFO_CENTERED_X,
-					INFO_TITLE_Y},
-					TITLE_FONT_SIZE,
-					GAME_NAME);
-	drawScore("White score: ",
-			{INFO_CENTERED_X,
-			INFO_BLACK_SCORE_Y},
-			getScore(model,
-				PLAYER_WHITE));
-	drawTimer({INFO_CENTERED_X,
-			INFO_BLACK_TIME_Y},
-			getTimer(model,
-				PLAYER_WHITE));
+    drawScore(
+        "Black score: ", {INFO_CENTERED_X, INFO_WHITE_SCORE_Y}, getScore(model, PLAYER_BLACK));
+    drawTimer({INFO_CENTERED_X, INFO_WHITE_TIME_Y}, getTimer(model, PLAYER_BLACK));
+    drawCenteredText({INFO_CENTERED_X, INFO_TITLE_Y}, TITLE_FONT_SIZE, GAME_NAME);
+    drawScore(
+        "White score: ", {INFO_CENTERED_X, INFO_BLACK_SCORE_Y}, getScore(model, PLAYER_WHITE));
+    drawTimer({INFO_CENTERED_X, INFO_BLACK_TIME_Y}, getTimer(model, PLAYER_WHITE));
 
-	if (model.gameOver)
-	{
-		drawButton({INFO_PLAYBLACK_BUTTON_X,
-					INFO_PLAYBLACK_BUTTON_Y},
-				"Play black",
-				BLACK);
+    if (model.gameOver) {
+        drawButton({INFO_PLAYBLACK_BUTTON_X, INFO_PLAYBLACK_BUTTON_Y}, "Play black", BLACK);
 
-		drawButton({INFO_PLAYWHITE_BUTTON_X,
-				INFO_PLAYWHITE_BUTTON_Y},
-				"Play white",
-				WHITE);
-	}
+        drawButton({INFO_PLAYWHITE_BUTTON_X, INFO_PLAYWHITE_BUTTON_Y}, "Play white", WHITE);
+    }
 
-	EndDrawing();
+    EndDrawing();
 }
 
-Square_t getSquareOnMousePointer()
-{
-	Vector2 mousePosition = GetMousePosition();
-	Square_t square = {(int)floor((mousePosition.x - BOARD_X) / SQUARE_SIZE),
-			(int)floor((mousePosition.y - BOARD_Y) / SQUARE_SIZE)};
-	int8_t n = GET_SQUARE_BIT_INDEX(square.x, square.y);
-	if (isSquareValid(n))
-		return square;
-	else
-		return GAME_INVALID_SQUARE;
+Square_t getSquareOnMousePointer() {
+    Vector2 mousePosition = GetMousePosition();
+    Square_t square = {(int)floor((mousePosition.x - BOARD_X) / SQUARE_SIZE),
+                       (int)floor((mousePosition.y - BOARD_Y) / SQUARE_SIZE)};
+    int8_t n = GET_SQUARE_BIT_INDEX(square.x, square.y);
+    if (isSquareValid(n, NONE))
+        return square;
+    else
+        return GAME_INVALID_SQUARE;
 }
 
-bool isMousePointerOverPlayBlackButton()
-{
-	return isMousePointerOverButton({INFO_PLAYBLACK_BUTTON_X,
-					INFO_PLAYBLACK_BUTTON_Y});
+bool isMousePointerOverPlayBlackButton() {
+    return isMousePointerOverButton({INFO_PLAYBLACK_BUTTON_X, INFO_PLAYBLACK_BUTTON_Y});
 }
 
-bool isMousePointerOverPlayWhiteButton()
-{
-	return isMousePointerOverButton({INFO_PLAYWHITE_BUTTON_X,
-					INFO_PLAYWHITE_BUTTON_Y});
+bool isMousePointerOverPlayWhiteButton() {
+    return isMousePointerOverButton({INFO_PLAYWHITE_BUTTON_X, INFO_PLAYWHITE_BUTTON_Y});
 }

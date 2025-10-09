@@ -6,7 +6,7 @@
  *			Alex Petersen,
  *			Dylan Frigerio,
  *			Enzo Fernadez Rosas
- * 
+ *
  * @copyright Copyright (c) 2023-2024
  */
 
@@ -49,7 +49,7 @@ bool updateView(GameModel &model)
 			Square_t square = getSquareOnMousePointer();
 			int8_t n = GET_SQUARE_BIT_INDEX(square.x, square.y);
 
-			if (isSquareValid(n))
+			if (isSquareValid(n,NONE))
 			{
 				Moves validMoves;
 				getValidMoves(model, validMoves);
