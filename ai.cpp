@@ -21,7 +21,7 @@
 
  /*
   Difficulties:
-  EASY: random
+  EASY: 
   NORMAL: minimax with depth n
   HARD: minimax depth n with alpha-beta pruning and improved evaluation function
   EXTREME: in progress
@@ -39,21 +39,21 @@ namespace {
 
     // Positional value table (weight of each square)
     const int POSITION_WEIGHTS[64] = {
-        500, -150,  30,  10,  10,  30, -150, 500,
+        500, -150,  30,  10,  10,  30, -150,  500,
        -150, -250,   0,   0,   0,   0, -250, -150,
-         30,    0,   1,   2,   2,   1,    0,  30,
-         10,    0,   2,  16,  16,   2,    0,  10,
-         10,    0,   2,  16,  16,   2,    0,  10,
-         30,    0,   1,   2,   2,   1,    0,  30,
+         30,    0,   1,   2,   2,   1,    0,   30,
+         10,    0,   2,  16,  16,   2,    0,   10,
+         10,    0,   2,  16,  16,   2,    0,   10,
+         30,    0,   1,   2,   2,   1,    0,   30,
        -150, -250,   0,   0,   0,   0, -250, -150,
-        500, -150,  30,  10,  10,  30, -150, 500
+        500, -150,  30,  10,  10,  30, -150,  500
     };
 
     /**
-     * @brief Copies the game state for simulation (more efficient)
+     * @brief Copies the game state for simulation
      */
     inline GameModel copyModel(const GameModel& model) {
-        GameModel copy = model;  // Uses the default copy constructor
+        GameModel copy = model;
         return copy;
     }
 
@@ -80,7 +80,7 @@ namespace {
             if (GET_BIT(oppBoard, i)) score -= POSITION_WEIGHTS[i];
         }
 
-        // 2. Mobility (very important)
+        // 2. Mobility
         int myMobility = getMoveCount(model.board, maximizingPlayer);
         int oppMobility = getMoveCount(model.board, getOpponent(maximizingPlayer));
 
@@ -94,14 +94,14 @@ namespace {
             score += (myMobility - oppMobility) * 30;
         }
 
-        // 3. Piece parity (important in late game)
+        // 3. Piece parity
         if (totalPieces > 50) {
             int myPieces = countBits(myBoard);
             int oppPieces = countBits(oppBoard);
             score += (myPieces - oppPieces) * 150;
         }
 
-        // 4. Stability (corner discs that cannot be flipped)
+        // 4. Stability
         score += countRegion(model.board, maximizingPlayer, CORNERS) * 500;
         score -= countRegion(model.board, getOpponent(maximizingPlayer), CORNERS) * 500;
 
@@ -138,7 +138,7 @@ namespace {
                 !isMaximizing, maximizingPlayer);
         }
 
-        // Move ordering (optimization for better pruning)
+        // Move ordering
         std::sort(validMoves.begin(), validMoves.end(),
             [](Move_t a, Move_t b) {
                 return POSITION_WEIGHTS[a] > POSITION_WEIGHTS[b];
