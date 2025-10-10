@@ -14,60 +14,75 @@
 #define MODEL_H
 
 #include <stdint.h>
-
-#include <cstdint>
 #include <vector>
 
 #define BOARD_SIZE 8
 
-// Board coordinate mapping:
-// (0, 0) -> Top-Left
-// (7, 7) -> Bottom-Right
-
 /**
- * @brief Converts (x,y) coordinates into a bit index (0–63).
+ * BITMAP REPRESENTATION:
+ * The board uses 64-bit integers where each bit is a square (index 0-63)
+ *
+ *      A  B  C  D  E  F  G  H
+ * 1 |  0  1  2  3  4  5  6  7 |
+ * 2 |  8  9 10 11 12 13 14 15 |
+ * 3 | 16 17 18 19 20 21 22 23 |
+ * 4 | 24 25 26 27 28 29 30 31 |
+ * 5 | 32 33 34 35 36 37 38 39 |
+ * 6 | 40 41 42 43 44 45 46 47 |
+ * 7 | 48 49 50 51 52 53 54 55 |
+ * 8 | 56 57 58 59 60 61 62 63 |
+ *
+ * Initial position: Black={27,36}, White={28,35}
  */
-#define GET_SQUARE_BIT_INDEX(x, y) ((x) + ((y) << 3))
 
-/**
- * @brief Sets a bit in a bitboard.
- */
+// ============================================================================
+// Bitboard manipulation macros
+// ============================================================================
+
 #define SET_BIT(bitmap, n) ((bitmap) |= (1ULL << (n)))
-
-/**
- * @brief Retrieves a bit from a bitboard.
- */
 #define GET_BIT(bitmap, n) (((bitmap) >> (n)) & 1ULL)
-
-/**
- * @brief Clears a bit in a bitboard.
- */
 #define CLEAR_BIT(bitmap, n) ((bitmap) &= ~(1ULL << (n)))
+
+// ============================================================================
+// Direction constants
+// ============================================================================
 
 enum { NW, N, NE, W, E, SW, S, SE, NONE };
 
+// ============================================================================
+// Core types
+// ============================================================================
+
 /**
- * @brief Represents a square position in 2D coordinates.
+ * @brief Move representation (bit index 0-63)
  */
-typedef struct {
-    int8_t x;
-    int8_t y;
-} Square_t;
-
-#define GAME_INVALID_SQUARE {(int8_t)-1, (int8_t)-1}
+typedef int8_t Move_t;
+#define MOVE_NONE ((Move_t)-1)
+#define MOVE_PASS ((Move_t)-2)
 
 /**
- * @brief State of a square on the board.
+ * @brief Vector of moves
  */
-typedef enum { SQUARE_BLACK, SQUARE_WHITE, SQUARE_EMPTY } SquareState_t;
+typedef std::vector<Move_t> MoveList;
 
 /**
- * @brief Identifies player color (mapped to square states).
+ * @brief Piece/Square state
  */
-typedef enum { PLAYER_BLACK = SQUARE_BLACK, PLAYER_WHITE = SQUARE_WHITE } PlayerColor_t;
+typedef enum {
+    STATE_BLACK = 0,
+    STATE_WHITE = 1,
+    STATE_EMPTY = 2
+} PieceState_t;
 
 /**
- * @brief Holds two bitboards (black and white pieces).
+ * @brief Player color (same values as piece state)
+ */
+typedef PieceState_t PlayerColor_t;
+#define PLAYER_BLACK STATE_BLACK
+#define PLAYER_WHITE STATE_WHITE
+
+/**
+ * @brief Board state (two bitboards)
  */
 typedef struct {
     uint64_t black;
@@ -75,34 +90,7 @@ typedef struct {
 } Board_t;
 
 /**
- * @brief Main game model storing board, players, and timers.
- */
-struct GameModel {
-    bool gameOver;
-
-    double playerTime[2];
-    double turnTimer;
-
-    Board_t board;
-    PlayerColor_t currentPlayer;
-    PlayerColor_t humanPlayer;
-};
-
-typedef std::vector<Square_t> Moves;
-
-// ============================================================================
-// NEW: AI-specific types and constants
-// ============================================================================
-
-/**
- * @brief Lightweight move representation (bit index 0-63)
- */
-typedef int8_t Move_t;
-#define MOVE_NONE ((Move_t) - 1)
-#define MOVE_PASS ((Move_t) - 2)
-
-/**
- * @brief Board state snapshot for make/unmake operations
+ * @brief Board snapshot for make/unmake operations
  */
 typedef struct {
     uint64_t black;
@@ -110,8 +98,57 @@ typedef struct {
     PlayerColor_t player;
 } BoardState_t;
 
+/**
+ * @brief Main game model
+ */
+struct GameModel {
+    Board_t board;
+    PlayerColor_t currentPlayer;
+    PlayerColor_t humanPlayer;
+
+    bool gameOver;
+    double playerTime[2];
+    double turnStartTime;
+
+    // AI threading state
+    bool aiThinking;
+    Move_t aiMove;
+};
+
 // ============================================================================
-// Existing game functions (unchanged interface)
+// Coordinate conversion utilities (inline for zero overhead)
+// ============================================================================
+
+/**
+ * @brief Converts (x,y) to Move_t
+ */
+inline Move_t coordsToMove(int8_t x, int8_t y) {
+    return x + (y << 3);
+}
+
+/**
+ * @brief Gets X coordinate from Move_t (0-7)
+ */
+inline int8_t getMoveX(Move_t move) {
+    return move & 7;
+}
+
+/**
+ * @brief Gets Y coordinate from Move_t (0-7)
+ */
+inline int8_t getMoveY(Move_t move) {
+    return move >> 3;
+}
+
+/**
+ * @brief Checks if move is valid position
+ */
+inline bool isMoveInBounds(Move_t move) {
+    return move >= 0 && move < 64;
+}
+
+// ============================================================================
+// Game model operations
 // ============================================================================
 
 /**
@@ -146,59 +183,57 @@ PlayerColor_t getCurrentPlayer(GameModel& model);
 int getScore(GameModel& model, PlayerColor_t player);
 
 /**
- * @brief Returns the game timer for a player.
- *
- * @param model The game model.
- * @param player The player (PLAYER_WHITE or PLAYER_BLACK).
- * @return The time in seconds.
+ * @brief Gets current elapsed time for a player
+ * This is thread-safe and updates continuously
+ * @param model The game model
+ * @param player The player
+ * @return Total elapsed time in seconds
  */
 double getTimer(GameModel& model, PlayerColor_t player);
 
 /**
  * @brief Return a model's piece.
  *
- * @param model The game model.
- * @param square The square.
+ * @param model  The game model.
+ * @param square The index of the square.
  * @return The piece at the square.
  */
-SquareState_t getBoardPiece(GameModel& model, int8_t n);
+PieceState_t getBoardPiece(GameModel& model, Move_t square);
 
 /**
  * @brief Sets a model's piece.
  *
  * @param model The game model.
- * @param square The square.
+ * @param move The index of the square.
  * @param piece The piece to be set
  */
-void setBoardPiece(GameModel& model, int8_t n, SquareState_t piece);
+void setBoardPiece(GameModel& model, Move_t move, PieceState_t piece);
 
 /**
  * @brief Checks whether a square is within the board.
- *
- * @param square The square.
- * @return True or false.
+ * @param move The square as Move_t (0-63)
+ * @param dir Direction to check (NW,N,NE,W,E,SW,S,SE)
+ * @return True or false
  */
-bool isSquareValid(int8_t pos, int dir);
+bool isSquareValid(Move_t move, int dir);
 
 /**
- * @brief Returns a list of valid moves for the current player.
- *
- * @param model The game model.
- * @param validMoves A list that receives the valid moves.
+ * @brief Gets valid moves for current player
+ * @param model Game model
+ * @param validMoves Output vector of moves (Move_t) 
  */
-void getValidMoves(GameModel& model, Moves& validMoves);
+void getValidMoves(GameModel& model, MoveList& validMoves);
 
 /**
- * @brief Plays a move.
- *
- * @param model The game model.
- * @param square The move.
- * @return Move accepted.
+ * @brief Plays a move
+ * @param model Game model
+ * @param move Move to play (0-63)
+ * @return True if move accepted
  */
-bool playMove(GameModel& model, int8_t move);
+bool playMove(GameModel& model, Move_t move);
 
 // ============================================================================
-// NEW: Core bitboard operations (extracted from internals)
+// Core bitboard operations
 // ============================================================================
 
 /**
@@ -234,32 +269,11 @@ int countBits(uint64_t bitmap);
  * @param bb Bitboard (must be non-zero)
  * @return Bit index (0-63)
  */
-int8_t bitScanForward(uint64_t bb);
+Move_t bitScanForward(uint64_t bb);
 
 // ============================================================================
-// NEW: AI helper functions (lightweight operations)
+// AI/Search functions
 // ============================================================================
-
-/**
- * @brief Converts Square_t to Move_t (bit index).
- */
-inline Move_t squareToMove(Square_t square) {
-    if (square.x < 0 || square.y < 0)
-        return MOVE_NONE;
-    return GET_SQUARE_BIT_INDEX(square.x, square.y);
-}
-
-/**
- * @brief Converts Move_t to Square_t.
- */
-inline Square_t moveToSquare(Move_t move) {
-    if (move < 0)
-        return GAME_INVALID_SQUARE;
-    Square_t sq;
-    sq.x = move & 7;
-    sq.y = move >> 3;
-    return sq;
-}
 
 /**
  * @brief Gets valid moves as Move_t array (for AI).
@@ -326,13 +340,27 @@ void unmakeMove(Board_t& board, PlayerColor_t& currentPlayer, const BoardState_t
 int getMoveCount(const Board_t& board, PlayerColor_t player);
 
 /**
+ * @brief Checks if a move is valid (without generating full move list).
+ *
+ * @param board The board state
+ * @param player The player
+ * @param move The move to check
+ * @return True if move is legal
+ */
+bool isMoveValid(const Board_t& board, PlayerColor_t player, Move_t move);
+
+// ============================================================================
+// Inline helper functions (zero overhead)
+// ============================================================================
+
+/**
  * @brief Gets the opponent of a player.
  *
  * @param player Current player
  * @return Opponent player
  */
 inline PlayerColor_t getOpponent(PlayerColor_t player) {
-    return (player == PLAYER_BLACK) ? PLAYER_WHITE : PLAYER_BLACK;
+    return (PlayerColor_t)(player ^ 1);
 }
 
 /**
@@ -388,52 +416,17 @@ inline int getEmptyCount(const Board_t& board) {
 }
 
 /**
- * @brief Checks if a move is valid (without generating full move list).
- *
- * @param board The board state
- * @param player The player
- * @param move The move to check
- * @return True if move is legal
- */
-bool isMoveValid(const Board_t& board, PlayerColor_t player, Move_t move);
-
-// ============================================================================
-// NEW: Bitboard constants for special squares (useful for evaluation)
-// ============================================================================
-
-// Corner squares (most valuable in Reversi)
-#define CORNERS 0x8100000000000081ULL  // a1, h1, a8, h8
-
-// X-squares (dangerous squares next to corners)
-#define X_SQUARES 0x4200000000004200ULL  // b2, g2, b7, g7
-
-// C-squares (edge squares next to corners)
-#define C_SQUARES 0x0042000000004200ULL  // b1, g1, a2, h2, a7, h7, b8, g8 (simplified)
-
-// Edge squares (excluding corners)
-#define EDGES 0x7E8181818181817EULL
-
-// Inner squares (center 6x6)
-#define INNER 0x007E7E7E7E7E7E00ULL
-
-// Center 4 squares (d4, e4, d5, e5)
-#define CENTER_4 0x0000001818000000ULL
-
-// ============================================================================
-// NEW: Advanced bitboard utilities (for future evaluation)
-// ============================================================================
-
+ * @brief Checks if a square is empty.
 /**
- * @brief Counts discs in a specific region (using mask).
+ * @brief Checks if a square is empty.
  *
  * @param board The board state
- * @param player The player
- * @param mask Region mask (e.g., CORNERS, EDGES)
- * @return Number of player's discs in masked region
+ * @param move Square position
+ * @return True if square is empty
  */
-inline int countRegion(const Board_t& board, PlayerColor_t player, uint64_t mask) {
-    uint64_t playerBB = getPlayerBitboard(board, player);
-    return countBits(playerBB & mask);
+inline bool isEmpty(const Board_t& board, Move_t move) {
+    uint64_t occupied = board.black | board.white;
+    return (occupied & (1ULL << move)) == 0;
 }
 
 /**
@@ -448,33 +441,6 @@ inline bool hasDisc(const Board_t& board, PlayerColor_t player, Move_t move) {
     uint64_t playerBB = getPlayerBitboard(board, player);
     return (playerBB & (1ULL << move)) != 0;
 }
-
-/**
- * @brief Checks if a square is empty.
- *
- * @param board The board state
- * @param move Square position
- * @return True if square is empty
- */
-inline bool isEmpty(const Board_t& board, Move_t move) {
-    uint64_t occupied = board.black | board.white;
-    return (occupied & (1ULL << move)) == 0;
-}
-
-/**
- * @brief Gets all corner discs for a player.
- *
- * @param board The board state
- * @param player The player
- * @return Number of corners held by player
- */
-inline int getCornerCount(const Board_t& board, PlayerColor_t player) {
-    return countRegion(board, player, CORNERS);
-}
-
-// ============================================================================
-// NEW: Board copying and comparison (useful for transposition tables)
-// ============================================================================
 
 /**
  * @brief Copies board state.
@@ -498,12 +464,38 @@ inline bool boardsEqual(const Board_t& a, const Board_t& b) {
     return (a.black == b.black) && (a.white == b.white);
 }
 
+// ============================================================================
+// Bitboard constants
+// ============================================================================
+
+#define CORNERS    0x8100000000000081ULL  // a1,h1,a8,h8
+#define X_SQUARES  0x4200000000004200ULL  // b2,g2,b7,g7
+#define C_SQUARES  0x0042000000004200ULL  // Adjacent to corners
+#define EDGES      0x7E8181818181817EULL  // Edges (no corners)
+#define INNER      0x007E7E7E7E7E7E00ULL  // Center 6x6
+#define CENTER_4   0x0000001818000000ULL  // d4,e4,d5,e5
+
 /**
- * @brief Prints board to console (for debugging).
+ * @brief Counts discs in a specific region (using mask).
  *
  * @param board The board state
- * @param currentPlayer Current player (optional, for display)
+ * @param player The player
+ * @param mask Region mask (e.g., CORNERS, EDGES)
+ * @return Number of player's discs in masked region
  */
-void printBoardDebug(const Board_t& board, PlayerColor_t currentPlayer = PLAYER_BLACK);
+inline int countRegion(const Board_t& board, PlayerColor_t player, uint64_t mask) {
+    return countBits(getPlayerBitboard(board, player) & mask);
+}
+
+/**
+ * @brief Gets all corner discs for a player.
+ *
+ * @param board The board state
+ * @param player The player
+ * @return Number of corners held by player
+ */
+inline int getCornerCount(const Board_t& board, PlayerColor_t player) {
+    return countRegion(board, player, CORNERS);
+}
 
 #endif

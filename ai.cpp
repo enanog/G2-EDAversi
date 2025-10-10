@@ -15,31 +15,29 @@
 #include <cstdlib>
 #include <limits>
 #include <algorithm>
-#include <vector>
 
-#include "ai.h"
 #include "view.h"
 #include "controller.h"
 
  /*
- Difficulties
- EASY: random
- NORMAL: minimax depth n (FALTA VER QUE PROFUNDIDAD ANALIZA BIEN)
- HARD: minimax depth n with alpha-beta pruning and improved evaluation function
- EXTREME: enzo (en tramite)
- */
+  Difficulties:
+  EASY: random
+  NORMAL: minimax with depth n
+  HARD: minimax depth n with alpha-beta pruning and improved evaluation function
+  EXTREME: in progress
+  */
 
 #define HARD_DIFFICULTY
 
 #ifdef HARD_DIFFICULTY
 namespace {
-    // Configuración ajustable
+    // Adjustable configuration
     const int MAX_DEPTH = 8;
     const int MAX_NODES = 500000;
 
     int nodesExplored = 0;
 
-    // Tabla de valores posicionales (peso de cada casilla)
+    // Positional value table (weight of each square)
     const int POSITION_WEIGHTS[64] = {
         500, -150,  30,  10,  10,  30, -150, 500,
        -150, -250,   0,   0,   0,   0, -250, -150,
@@ -52,72 +50,20 @@ namespace {
     };
 
     /**
-     * @brief Cuenta bits activados (popcount) de forma multiplataforma
+     * @brief Copies the game state for simulation (more efficient)
      */
-    inline int popcount64(uint64_t x) {
-#if defined(_MSC_VER)
-        // Windows con MSVC
-        return (int)__popcnt64(x);
-#elif defined(__GNUC__) || defined(__clang__)
-        // GCC/Clang (Linux/macOS)
-        return __builtin_popcountll(x);
-#else
-        // Fallback portable (algoritmo de Brian Kernighan)
-        int count = 0;
-        while (x) {
-            x &= (x - 1);
-            count++;
-        }
-        return count;
-#endif
-    }
-
-    /**
-     * @brief Encuentra el bit menos significativo (bitscan forward) de forma multiplataforma
-     */
-    inline int bitScanForward64(uint64_t x) {
-#if defined(_MSC_VER)
-        // Windows con MSVC
-        unsigned long idx;
-        _BitScanForward64(&idx, x);
-        return (int)idx;
-#elif defined(__GNUC__) || defined(__clang__)
-        // GCC/Clang
-        return __builtin_ctzll(x);
-#else
-        // Fallback portable
-        int idx = 0;
-        while (((x >> idx) & 1ULL) == 0) {
-            idx++;
-        }
-        return idx;
-#endif
-    }
-
-    /**
-     * @brief Copia el estado del juego para simulación
-     */
-    GameModel copyModel(const GameModel& model) {
-        GameModel copy;
-        copy.board.black = model.board.black;
-        copy.board.white = model.board.white;
-        copy.currentPlayer = model.currentPlayer;
-        copy.gameOver = model.gameOver;
-        copy.humanPlayer = model.humanPlayer;
-        copy.playerTime[0] = model.playerTime[0];
-        copy.playerTime[1] = model.playerTime[1];
-        copy.turnTimer = model.turnTimer;
+    inline GameModel copyModel(const GameModel& model) {
+        GameModel copy = model;  // Uses the default copy constructor
         return copy;
     }
 
     /**
-     * @brief Función de evaluación mejorada con pesos posicionales
+     * @brief Enhanced evaluation function using positional weights
      */
-    int evaluateBoard(GameModel& model, PlayerColor_t maximizingPlayer) {
+    int evaluateBoard(const GameModel& model, PlayerColor_t maximizingPlayer) {
         if (model.gameOver) {
-            int myScore = getScore(model, maximizingPlayer);
-            int oppScore = getScore(model, maximizingPlayer == PLAYER_BLACK ?
-                PLAYER_WHITE : PLAYER_BLACK);
+            int myScore = countBits(getPlayerBitboard(model.board, maximizingPlayer));
+            int oppScore = countBits(getOpponentBitboard(model.board, maximizingPlayer));
 
             if (myScore > oppScore) return 100000;
             if (myScore < oppScore) return -100000;
@@ -125,54 +71,45 @@ namespace {
         }
 
         int score = 0;
-        uint64_t myBoard = (maximizingPlayer == PLAYER_BLACK) ?
-            model.board.black : model.board.white;
-        uint64_t oppBoard = (maximizingPlayer == PLAYER_BLACK) ?
-            model.board.white : model.board.black;
+        uint64_t myBoard = getPlayerBitboard(model.board, maximizingPlayer);
+        uint64_t oppBoard = getOpponentBitboard(model.board, maximizingPlayer);
 
-        // 1. Pesos posicionales
+        // 1. Positional weights
         for (int i = 0; i < 64; i++) {
             if (GET_BIT(myBoard, i)) score += POSITION_WEIGHTS[i];
             if (GET_BIT(oppBoard, i)) score -= POSITION_WEIGHTS[i];
         }
 
-        // 2. Movilidad (muy importante)
-        Moves myMoves, oppMoves;
-        getValidMoves(model, myMoves);
+        // 2. Mobility (very important)
+        int myMobility = getMoveCount(model.board, maximizingPlayer);
+        int oppMobility = getMoveCount(model.board, getOpponent(maximizingPlayer));
 
-        model.currentPlayer = (model.currentPlayer == PLAYER_BLACK) ?
-            PLAYER_WHITE : PLAYER_BLACK;
-        getValidMoves(model, oppMoves);
-        model.currentPlayer = (model.currentPlayer == PLAYER_BLACK) ?
-            PLAYER_WHITE : PLAYER_BLACK;
+        int totalPieces = countBits(myBoard | oppBoard);
 
-        int totalPieces = popcount64(myBoard | oppBoard);
-
-        // Movilidad más importante en medio juego
+        // Mobility is more important in the midgame
         if (totalPieces < 50) {
-            score += ((int)myMoves.size() - (int)oppMoves.size()) * 80;
+            score += (myMobility - oppMobility) * 80;
         }
         else {
-            score += ((int)myMoves.size() - (int)oppMoves.size()) * 30;
+            score += (myMobility - oppMobility) * 30;
         }
 
-        // 3. Paridad de fichas (importante en late game)
+        // 3. Piece parity (important in late game)
         if (totalPieces > 50) {
-            int myPieces = popcount64(myBoard);
-            int oppPieces = popcount64(oppBoard);
+            int myPieces = countBits(myBoard);
+            int oppPieces = countBits(oppBoard);
             score += (myPieces - oppPieces) * 150;
         }
 
-        // 4. Estabilidad (fichas en esquinas que no pueden ser volteadas)
-        const uint64_t corners = 0x8100000000000081ULL;
-        score += popcount64(myBoard & corners) * 500;
-        score -= popcount64(oppBoard & corners) * 500;
+        // 4. Stability (corner discs that cannot be flipped)
+        score += countRegion(model.board, maximizingPlayer, CORNERS) * 500;
+        score -= countRegion(model.board, getOpponent(maximizingPlayer), CORNERS) * 500;
 
         return score;
     }
 
     /**
-     * @brief Minimax con poda Alpha-Beta
+     * @brief Minimax algorithm with Alpha-Beta pruning
      */
     int alphaBeta(GameModel& model, int depth, int alpha, int beta,
         bool isMaximizing, PlayerColor_t maximizingPlayer) {
@@ -182,15 +119,15 @@ namespace {
             return evaluateBoard(model, maximizingPlayer);
         }
 
-        Moves validMoves;
+        MoveList validMoves;
         getValidMoves(model, validMoves);
 
+        // If the current player has no moves available
         if (validMoves.empty()) {
             GameModel nextModel = copyModel(model);
-            nextModel.currentPlayer = (nextModel.currentPlayer == PLAYER_BLACK) ?
-                PLAYER_WHITE : PLAYER_BLACK;
+            nextModel.currentPlayer = getOpponent(nextModel.currentPlayer);
 
-            Moves oppMoves;
+            MoveList oppMoves;
             getValidMoves(nextModel, oppMoves);
             if (oppMoves.empty()) {
                 nextModel.gameOver = true;
@@ -201,22 +138,18 @@ namespace {
                 !isMaximizing, maximizingPlayer);
         }
 
-        // Ordenamiento de movimientos (optimización)
-        // Evaluar esquinas primero para mejor poda
+        // Move ordering (optimization for better pruning)
         std::sort(validMoves.begin(), validMoves.end(),
-            [](const Square_t& a, const Square_t& b) {
-                int idxA = GET_SQUARE_BIT_INDEX(a.x, a.y);
-                int idxB = GET_SQUARE_BIT_INDEX(b.x, b.y);
-                return POSITION_WEIGHTS[idxA] > POSITION_WEIGHTS[idxB];
+            [](Move_t a, Move_t b) {
+                return POSITION_WEIGHTS[a] > POSITION_WEIGHTS[b];
             });
 
         if (isMaximizing) {
             int maxEval = std::numeric_limits<int>::min();
 
-            for (const Square_t& move : validMoves) {
+            for (Move_t move : validMoves) {
                 GameModel nextModel = copyModel(model);
-                int8_t n = GET_SQUARE_BIT_INDEX(move.x, move.y);
-                playMove(nextModel, n);
+                playMove(nextModel, move);
 
                 int eval = alphaBeta(nextModel, depth - 1, alpha, beta,
                     false, maximizingPlayer);
@@ -224,7 +157,7 @@ namespace {
                 alpha = std::max(alpha, eval);
 
                 if (beta <= alpha) {
-                    break; // Poda Beta
+                    break; // Beta cutoff
                 }
             }
 
@@ -233,10 +166,9 @@ namespace {
         else {
             int minEval = std::numeric_limits<int>::max();
 
-            for (const Square_t& move : validMoves) {
+            for (Move_t move : validMoves) {
                 GameModel nextModel = copyModel(model);
-                int8_t n = GET_SQUARE_BIT_INDEX(move.x, move.y);
-                playMove(nextModel, n);
+                playMove(nextModel, move);
 
                 int eval = alphaBeta(nextModel, depth - 1, alpha, beta,
                     true, maximizingPlayer);
@@ -244,7 +176,7 @@ namespace {
                 beta = std::min(beta, eval);
 
                 if (beta <= alpha) {
-                    break; // Poda Alpha
+                    break; // Alpha cutoff
                 }
             }
 
@@ -253,38 +185,39 @@ namespace {
     }
 }
 
-Square_t getBestMove(GameModel& model)
-{
+/**
+ * @brief Selects the best move using minimax search with alpha-beta pruning
+ */
+Move_t getBestMove(GameModel& model) {
     nodesExplored = 0;
 
-    Moves validMoves;
+    MoveList validMoves;
     getValidMoves(model, validMoves);
 
     if (validMoves.empty()) {
-        return GAME_INVALID_SQUARE;
+        return MOVE_NONE;
     }
 
-    // Ajuste dinámico de profundidad según fase del juego
-    int totalPieces = getScore(model, PLAYER_BLACK) + getScore(model, PLAYER_WHITE);
+    // Dynamically adjust search depth based on game phase
+    int totalPieces = getDiscCount(model.board);
     int searchDepth = MAX_DEPTH;
 
     if (totalPieces > 52) {
-        // Endgame: búsqueda completa si es posible
+        // Endgame: perform full search if possible
         searchDepth = std::min(64 - totalPieces, 15);
     }
     else if (totalPieces < 20) {
-        // Early game: menos profundidad
+        // Opening: shallower search
         searchDepth = MAX_DEPTH - 2;
     }
 
     PlayerColor_t currentPlayer = getCurrentPlayer(model);
-    Square_t bestMove = validMoves[0];
+    Move_t bestMove = validMoves[0];
     int bestScore = std::numeric_limits<int>::min();
 
-    for (const Square_t& move : validMoves) {
+    for (Move_t move : validMoves) {
         GameModel nextModel = copyModel(model);
-        int8_t n = GET_SQUARE_BIT_INDEX(move.x, move.y);
-        playMove(nextModel, n);
+        playMove(nextModel, move);
 
         int score = alphaBeta(nextModel, searchDepth - 1,
             std::numeric_limits<int>::min(),
@@ -294,11 +227,6 @@ Square_t getBestMove(GameModel& model)
         if (score > bestScore) {
             bestScore = score;
             bestMove = move;
-        }
-
-        // Mantener UI responsiva cada 1000 nodos
-        if (nodesExplored % 1000 == 0) {
-            drawView(model);
         }
     }
 

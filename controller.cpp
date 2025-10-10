@@ -18,66 +18,65 @@
 #include "view.h"
 #include "controller.h"
 
-bool updateView(GameModel &model)
-{
-	if (WindowShouldClose())
-		return false;
+#include "controller.h"
 
-	if (model.gameOver)
-	{
-		if (IsMouseButtonPressed(0))
-		{
-			if (isMousePointerOverPlayBlackButton())
-			{
-				model.humanPlayer = PLAYER_BLACK;
+#include <algorithm>
 
-				startModel(model);
-			}
-			else if (isMousePointerOverPlayWhiteButton())
-			{
-				model.humanPlayer = PLAYER_WHITE;
+#include "raylib.h"
+#include "ai.h"
+#include "view.h"
 
-				startModel(model);
-			}
-		}
-	}
-	else if (model.currentPlayer == model.humanPlayer)
-	{
-		if (IsMouseButtonPressed(0))
-		{
-			// Human player
-			Square_t square = getSquareOnMousePointer();
-			int8_t n = GET_SQUARE_BIT_INDEX(square.x, square.y);
+bool updateView(GameModel& model) {
+    if (WindowShouldClose())
+        return false;
 
-			if (isSquareValid(n,NONE))
-			{
-				Moves validMoves;
-				getValidMoves(model, validMoves);
-				// Play move if valid
-				for (auto move : validMoves)
-				{
-					if ((square.x == move.x) &&
-						(square.y == move.y))
-						playMove(model, n);
-				}
-			}
-		}
-	}
-	else
-	{
-		// AI player
-		Square_t square = getBestMove(model);
-		int8_t n = GET_SQUARE_BIT_INDEX(square.x, square.y);
+    if (model.gameOver) {
+        // Pantalla de inicio/fin de juego
+        if (IsMouseButtonPressed(0)) {
+            if (isMousePointerOverPlayBlackButton()) {
+                model.humanPlayer = PLAYER_BLACK;
+                startModel(model);
+            }
+            else if (isMousePointerOverPlayWhiteButton()) {
+                model.humanPlayer = PLAYER_WHITE;
+                startModel(model);
+            }
+        }
+    }
+    else if (model.currentPlayer == model.humanPlayer) {
+        // Turno del humano
+        if (IsMouseButtonPressed(0)) {
+            Move_t move = getMoveOnMousePointer();
 
-		playMove(model, n);
-	}
+            if (move != MOVE_NONE) {
+                // Verificar si el movimiento es válido
+                MoveList validMoves;
+                getValidMoves(model, validMoves);
 
-	if ((IsKeyDown(KEY_LEFT_ALT) ||
-		IsKeyDown(KEY_RIGHT_ALT)) &&
-		IsKeyPressed(KEY_ENTER))
-		ToggleFullscreen();
+                // Buscar el movimiento en la lista de movimientos válidos
+                auto it = std::find(validMoves.begin(), validMoves.end(), move);
+                if (it != validMoves.end()) {
+                    playMove(model, move);
+                }
+            }
+        }
+    }
+    else {
+        // Turno de la AI
+        Move_t move = getBestMove(model);
 
-	drawView(model);
+        if (move != MOVE_NONE) {
+            playMove(model, move);
+        }
+    }
 
-	return true;
+    // Toggle fullscreen con Alt+Enter
+    if ((IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)) &&
+        IsKeyPressed(KEY_ENTER)) {
+        ToggleFullscreen();
+    }
+
+    drawView(model);
+
+    return true;
 }
