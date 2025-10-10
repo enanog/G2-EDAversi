@@ -17,7 +17,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     add_link_options(-fsanitize=undefined)
 endif()
 
-add_executable(main main.cpp model.cpp view.cpp controller.cpp ai.cpp)
+add_executable(main main.cpp model.cpp view.cpp controller.cpp ai.cpp transposition_table.cpp)
 
 # Raylib
 find_package(raylib CONFIG REQUIRED)

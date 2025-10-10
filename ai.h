@@ -39,6 +39,8 @@ Move_t getBestMove(GameModel& model);
 #include <chrono>
 #include <iostream>
 
+#include "transposition_table.h"
+
 // ============================================================================
 // AI Configuration Constants
 // ============================================================================
@@ -116,6 +118,7 @@ class Evaluator {
 class SearchEngine {
   private:
     Evaluator evaluator;
+    TranspositionTable tt;  // Transposition table
 
     // Search statistics
     int nodesSearched;
@@ -143,9 +146,10 @@ class SearchEngine {
     Move_t search(Board_t& board, PlayerColor_t player, double timeLimitSeconds);
 
     /**
-     * @brief Negamax search with alpha-beta pruning
+     * @brief Negamax search with alpha-beta pruning and TT
      */
-    int negamax(Board_t& board, PlayerColor_t player, int depth, int alpha, int beta);
+    int negamax(
+        Board_t& board, PlayerColor_t player, int depth, int alpha, int beta, uint64_t hash);
 
     /**
      * @brief Root-level search (finds best move, not just score)

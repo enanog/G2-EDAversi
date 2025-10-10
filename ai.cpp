@@ -13,8 +13,10 @@
 #include "ai.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <iostream>
 #include <limits>
 
 #include "controller.h"
@@ -223,6 +225,130 @@ Move_t getBestMove(GameModel& model) {
 }
 #elif defined(EXTREME_DIFFICULTY)
 
+int SearchEngine::negamax(
+    Board_t& board, PlayerColor_t player, int depth, int alpha, int beta, uint64_t hash) {
+    nodesSearched++;
+
+    int originalAlpha = alpha;
+
+    // Probe transposition table
+    int ttScore;
+    Move_t ttMove = MOVE_NONE;
+    if (tt.probe(hash, depth, alpha, beta, ttScore, ttMove)) {
+        // TT hit with usable score
+        return ttScore;
+    }
+
+    // Terminal node checks
+    if (depth == 0 || isTerminal(board, player)) {
+        int score = evaluator.evaluate(board, player);
+        tt.store(hash, depth, score, BOUND_EXACT, MOVE_NONE);
+        return score;
+    }
+
+    // Time check every ~1000 nodes
+    if ((nodesSearched & 0x3FF) == 0 && isTimeUp()) {
+        return evaluator.evaluate(board, player);
+    }
+
+    MoveList moves;
+    getValidMovesAI(board, player, moves);
+
+    // If no moves, pass to opponent
+    if (moves.empty()) {
+        PlayerColor_t opponent = getOpponent(player);
+
+        // Check if opponent can move
+        if (!hasValidMoves(board, opponent)) {
+            // Game over - return final score
+            int finalScore = getScoreDiff(board, player);
+            int score;
+            if (finalScore > 0)
+                score = WIN_SCORE;
+            else if (finalScore < 0)
+                score = LOSE_SCORE;
+            else
+                score = 0;
+
+            tt.store(hash, depth, score, BOUND_EXACT, MOVE_NONE);
+            return score;
+        }
+
+        // Pass: opponent moves, then it's our turn again
+        // Toggle player-to-move bit (board doesn't change, only whose turn)
+        uint64_t passHash = hash ^ tt.getZobristPlayer();
+        return -negamax(board, opponent, depth - 1, -beta, -alpha, passHash);
+    }
+
+    // Move ordering: try TT move first
+    if (ttMove != MOVE_NONE) {
+        auto it = std::find(moves.begin(), moves.end(), ttMove);
+        if (it != moves.end()) {
+            moves.erase(it);
+            moves.insert(moves.begin(), ttMove);
+        }
+    }
+
+    // Order remaining moves
+    orderMoves(moves, board, player);
+
+    int bestScore = -INFINITY_SCORE;
+    Move_t bestMove = moves[0];
+    int bound = BOUND_UPPER;  // Assume fail-low
+
+    for (Move_t move : moves) {
+        PlayerColor_t nextPlayer = player;
+        uint64_t playerBB = getPlayerBitboard(board, player);
+        uint64_t opponentBB = getOpponentBitboard(board, player);
+        uint64_t flips = calculateFlips(playerBB, opponentBB, move);
+
+        BoardState_t state = makeMove(board, nextPlayer, move);
+
+        // Incrementally update hash
+        uint64_t nextHash = tt.updateHash(hash, move, flips, player);
+
+        int score = -negamax(board, nextPlayer, depth - 1, -beta, -alpha, nextHash);
+
+        unmakeMove(board, nextPlayer, state);
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
+
+        if (score > alpha) {
+            alpha = score;
+            bound = BOUND_EXACT;  // We have a PV node
+        }
+
+        if (alpha >= beta) {
+            cutoffs++;
+            bound = BOUND_LOWER;  // Beta cutoff
+            bestScore = beta;
+            break;
+        }
+    }
+
+    // Store in transposition table
+    tt.store(hash, depth, bestScore, bound, bestMove);
+
+    return bestScore;
+} /**
+   * @brief Implements the Reversi game AI
+   * @author Marc S. Ressl
+   * @modified: Phase 2 - Evaluation + Alpha-Beta Search
+   *
+   * @copyright Copyright (c) 2023-2024
+   */
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <iostream>
+
+#include "ai.h"
+#include "transposition_table.h"
+
 // ============================================================================
 // Evaluator Implementation
 // ============================================================================
@@ -386,8 +512,14 @@ Move_t SearchEngine::search(Board_t& board, PlayerColor_t player, double timeLim
     cutoffs = 0;
     maxDepthReached = 0;
 
+    // Increment TT age for new search
+    tt.newSearch();
+
     Move_t bestMove = MOVE_NONE;
     int emptyCount = getEmptyCount(board);
+
+    // Compute initial hash
+    uint64_t hash = tt.computeHash(board, player);
 
     // Determine maximum depth based on game phase
     int maxDepth = MAX_SEARCH_DEPTH;
@@ -423,6 +555,9 @@ Move_t SearchEngine::search(Board_t& board, PlayerColor_t player, double timeLim
     std::cout << "Search complete: Depth=" << maxDepthReached << " Nodes=" << nodesSearched
               << " Cutoffs=" << cutoffs << std::endl;
 
+    // Print TT statistics
+    tt.printStats();
+
     return bestMove;
 }
 
@@ -434,20 +569,42 @@ Move_t SearchEngine::rootSearch(
     if (moves.empty())
         return MOVE_NONE;
 
-    // Order moves for better pruning
+    // Compute hash for this position
+    uint64_t hash = tt.computeHash(board, player);
+
+    // Check TT for best move to try first
+    Move_t ttMove = tt.getBestMove(hash);
+    if (ttMove != MOVE_NONE) {
+        // Move TT move to front
+        auto it = std::find(moves.begin(), moves.end(), ttMove);
+        if (it != moves.end()) {
+            moves.erase(it);
+            moves.insert(moves.begin(), ttMove);
+        }
+    }
+
+    // Order remaining moves
     orderMoves(moves, board, player);
 
     Move_t bestMove = moves[0];
     int bestScore = -INFINITY_SCORE;
+    int bound = BOUND_UPPER;  // Assume fail-low initially
 
     for (Move_t move : moves) {
         if (isTimeUp())
             break;
 
         PlayerColor_t nextPlayer = player;
+        uint64_t playerBB = getPlayerBitboard(board, player);
+        uint64_t opponentBB = getOpponentBitboard(board, player);
+        uint64_t flips = calculateFlips(playerBB, opponentBB, move);
+
         BoardState_t state = makeMove(board, nextPlayer, move);
 
-        int score = -negamax(board, nextPlayer, depth - 1, -beta, -alpha);
+        // Incrementally update hash
+        uint64_t nextHash = tt.updateHash(hash, move, flips, player);
+
+        int score = -negamax(board, nextPlayer, depth - 1, -beta, -alpha, nextHash);
 
         unmakeMove(board, nextPlayer, state);
 
@@ -456,16 +613,24 @@ Move_t SearchEngine::rootSearch(
             bestMove = move;
         }
 
-        alpha = std::max(alpha, score);
+        if (score > alpha) {
+            alpha = score;
+            bound = BOUND_EXACT;  // We have a PV node
+        }
+
         if (alpha >= beta) {
             cutoffs++;
-            break;  // Beta cutoff
+            bound = BOUND_LOWER;  // Beta cutoff
+            break;
         }
     }
 
+    // Store result in TT
+    tt.store(hash, depth, bestScore, bound, bestMove);
+
     return bestMove;
 }
-
+/*
 int SearchEngine::negamax(Board_t& board, PlayerColor_t player, int depth, int alpha, int beta) {
     nodesSearched++;
 
@@ -525,7 +690,7 @@ int SearchEngine::negamax(Board_t& board, PlayerColor_t player, int depth, int a
     }
 
     return bestScore;
-}
+}*/
 
 void SearchEngine::orderMoves(MoveList& moves, const Board_t& board, PlayerColor_t player) {
     // Sort moves by heuristic score (descending)
@@ -631,5 +796,4 @@ Move_t getBestMove(GameModel& model) {
 
     return bestMove;
 }
-
 #endif
