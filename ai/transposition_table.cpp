@@ -1,3 +1,15 @@
+/**
+ * @brief Transposition Table for Reversi AI
+ * @author Marc S. Ressl
+ * @modifiers:
+ *          Agustin Valenzuela,
+ *          Alex Petersen,
+ *          Dylan Frigerio,
+ *          Enzo Fernandez Rosas
+ *
+ * @copyright Copyright (c) 2023-2024
+ */
+
 #include "transposition_table.h"
 
 #include <cmath>

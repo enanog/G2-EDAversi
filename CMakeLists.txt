@@ -20,16 +20,21 @@ endif()
 add_executable(main
     main.cpp
     model.cpp
-    view.cpp
     controller.cpp
-    transposition_table.cpp
-    opening_book.cpp
+
+    view/view.cpp
+    view/ui_components.cpp
+    view/board_renderer.cpp
+    view/game_overlay.cpp
+    view/menu_system.cpp
 
     ai/ai_factory.cpp
     ai/ai_easy.cpp
     ai/ai_normal.cpp
     ai/ai_hard.cpp
     ai/ai_extreme.cpp
+    ai/opening_book.cpp
+    ai/transposition_table.cpp
 )
 # Raylib
 find_package(raylib CONFIG REQUIRED)

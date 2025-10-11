@@ -1,9 +1,20 @@
+/**
+ * @brief Transposition Table for Reversi AI
+ * @author Marc S. Ressl
+ * @modifiers:
+ *          Agustin Valenzuela,
+ *          Alex Petersen,
+ *          Dylan Frigerio,
+ *          Enzo Fernandez Rosas
+ *
+ * @copyright Copyright (c) 2023-2024
+ */
 #ifndef TRANSPOSITION_TABLE_H
 #define TRANSPOSITION_TABLE_H
 
 #include <cstdint>
 
-#include "model.h"
+#include "../model.h"
 
 // ============================================================================
 // Transposition Table Configuration

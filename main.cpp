@@ -7,17 +7,14 @@
  */
 
 #include "model.h"
-#include "view.h"
+#include "view/view.h"
 #include "controller.h"
-#include "ai/ai_factory.h"  // NUEVO: Para gestión de AI
+#include "ai/ai_factory.h"
 
 int main()
 {
 	GameModel model;
-
-	// NUEVO: Inicializar sistema de AI ANTES del modelo
-	// Por defecto usamos AI_HARD, pero puedes cambiarlo aquí
-	initializeAI(AI_EXTREME);
+	initializeAI(AI_HARD);
 
 	initModel(model);
 	initView();

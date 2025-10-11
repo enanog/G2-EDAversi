@@ -1,6 +1,13 @@
 /**
  * @brief Opening Book Implementation
+ * @author Marc S. Ressl
+ * @modifiers:
+ *          Agustin Valenzuela,
+ *          Alex Petersen,
+ *          Dylan Frigerio,
+ *          Enzo Fernandez Rosas
  *
+ * @copyright Copyright (c) 2023-2024
  */
 
 #include "opening_book.h"

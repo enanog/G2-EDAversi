@@ -17,8 +17,8 @@
 #include <memory>
 #include <vector>
 
-#include "../opening_book.h"
-#include "../transposition_table.h"
+#include "opening_book.h"
+#include "transposition_table.h"
 #include "ai_interface.h"
 
 /**

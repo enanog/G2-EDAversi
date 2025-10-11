@@ -19,7 +19,7 @@
 
 #include "raylib.h"
 #include "ai/ai_factory.h"
-#include "view.h"
+#include "view/view.h"
 #include "controller.h"
 
  // Threading synchronization

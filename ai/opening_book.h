@@ -1,9 +1,13 @@
 /**
  * @brief Opening Book for Reversi AI
+ * @author Marc S. Ressl
+ * @modifiers:
+ *          Agustin Valenzuela,
+ *          Alex Petersen,
+ *          Dylan Frigerio,
+ *          Enzo Fernandez Rosas
  *
- * Loads and queries opening moves from WThor game databases
- * Provides instant, expert-level opening play
- *
+ * @copyright Copyright (c) 2023-2024
  */
 
 #ifndef OPENING_BOOK_H
@@ -14,7 +18,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "model.h"
+#include "../model.h"
 #include "transposition_table.h"
 
 // ============================================================================
