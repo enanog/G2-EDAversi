@@ -113,6 +113,11 @@ struct GameModel {
     // AI threading state
     bool aiThinking;
     Move_t aiMove;
+
+    // Turn pass notification
+    bool showPassMessage;
+    PlayerColor_t passedPlayer;
+    double passMessageStartTime;
 };
 
 // ============================================================================

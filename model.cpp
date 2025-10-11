@@ -264,6 +264,9 @@ void initModel(GameModel& model) {
     model.board.white = 0;
     model.aiThinking = false;
     model.aiMove = MOVE_NONE;
+    model.showPassMessage = false;
+    model.passedPlayer = PLAYER_BLACK;
+    model.passMessageStartTime = 0;
 }
 
 void startModel(GameModel& model) {
@@ -294,6 +297,10 @@ int getScore(GameModel& model, PlayerColor_t player) {
 
 double getTimer(GameModel& model, PlayerColor_t player) {
     double accumulatedTime = model.playerTime[player];
+
+    if (model.showPassMessage) {
+        return accumulatedTime;  // No contar tiempo
+    }
 
     if (!model.gameOver && (player == model.currentPlayer)) {
         double currentTurnTime = GetTime() - model.turnStartTime;
@@ -411,6 +418,7 @@ bool playMove(GameModel& model, Move_t move) {
     getValidMoves(model, validMoves);
 
     if (validMoves.size() == 0) {
+        PlayerColor_t playerWhoPassed = model.currentPlayer;
         // Volver al jugador original
         model.currentPlayer = getOpponent(model.currentPlayer);
 
@@ -418,7 +426,16 @@ bool playMove(GameModel& model, Move_t move) {
         getValidMoves(model, validMoves2);
 
         if (validMoves2.size() == 0)
+        {
             model.gameOver = true;
+			model.turnStartTime = 0;
+            std::cout << "[Model] Game over detected after both players passed." << std::endl;
+			return true;
+        }
+        
+        model.showPassMessage = true;
+        model.passedPlayer = playerWhoPassed;
+        model.passMessageStartTime = GetTime();
     }
 
     return true;

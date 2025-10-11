@@ -59,7 +59,6 @@ void aiWorkerFunction(GameModel* modelPtr) {
     std::cout << "[AI Thread] Using: " << currentAI->getName() << std::endl;
 
     // Polymorphic AI call
-	for (uint64_t i = 0; i < 0xFFFFFFFF; i++); // Simulate thinking delay
     Move_t bestMove = currentAI->getBestMove(localModel);
 
     std::cout << "[AI Thread] Found move: " << (int)bestMove << std::endl;
@@ -116,14 +115,23 @@ bool checkAndApplyAIMove(GameModel& model) {
     if (!isThinking && move != MOVE_NONE) {
         std::cout << "[Main] AI finished! Applying move: " << (int)move << std::endl;
 
-        playMove(model, move);
+        bool moveApplied = playMove(model, move);
         model.aiMove = MOVE_NONE;
 
         if (aiThread.joinable()) {
             aiThread.join();
         }
 
-        std::cout << "[Main] Move applied!" << std::endl;
+        if (moveApplied) {
+            std::cout << "[Main] Move applied successfully!" << std::endl;
+            std::cout << "[Main] GameOver: " << model.gameOver
+                << ", Current player: " << (model.currentPlayer == PLAYER_BLACK ? "BLACK" : "WHITE")
+                << ", ShowPass: " << model.showPassMessage << std::endl;
+        }
+        else {
+            std::cout << "[Main] WARNING: Move was rejected by playMove!" << std::endl;
+        }
+
         return true;
     }
 
@@ -207,6 +215,20 @@ bool updateView(GameModel& model) {
         return true;
     }
 
+    // CRÍTICO: Manejar el mensaje de pase ANTES de todo lo demás
+    if (model.showPassMessage) {
+        double elapsed = GetTime() - model.passMessageStartTime;
+        if (elapsed >= 0.5) {
+            model.showPassMessage = false;
+            model.turnStartTime = GetTime();
+            std::cout << "[Main] Pass message cleared, resuming as "
+                << (model.currentPlayer == PLAYER_BLACK ? "BLACK" : "WHITE") << std::endl;
+        }
+        // Durante el mensaje, solo dibujar y salir
+        drawView(model);
+        return true;
+    }
+
     // Normal gameplay flow
     if (model.gameOver) {
         if (IsMouseButtonPressed(0)) {
@@ -242,11 +264,41 @@ bool updateView(GameModel& model) {
     else {
         // AI player turn
         if (checkAndApplyAIMove(model)) {
-            std::cout << "[Main] AI move processed, next turn." << std::endl;
+            std::cout << "[Main] AI move processed, next player: "
+                << (model.currentPlayer == model.humanPlayer ? "HUMAN" : "AI")
+                << ", GameOver: " << model.gameOver << std::endl;
         }
-        else if (!model.aiThinking) {
-            std::cout << "[Main] AI turn detected, starting AI..." << std::endl;
-            startAIThinking(model);
+        else if (!model.aiThinking && !model.gameOver) {
+            std::cout << "[Main] AI turn detected, verifying valid moves..." << std::endl;
+
+            // CRÍTICO: Verificar que realmente hay movimientos válidos antes de iniciar AI
+            MoveList aiMoves;
+            getValidMoves(model, aiMoves);
+
+            if (aiMoves.empty()) {
+                std::cout << "[Main] WARNING: AI has no valid moves! Checking game over..." << std::endl;
+
+                // El jugador actual (AI) no puede mover, verificar si el oponente puede
+                model.currentPlayer = getOpponent(model.currentPlayer);
+                MoveList humanMoves;
+                getValidMoves(model, humanMoves);
+
+                if (humanMoves.empty()) {
+                    std::cout << "[Main] Neither player can move - GAME OVER" << std::endl;
+                    model.gameOver = true;
+                }
+                else {
+                    std::cout << "[Main] AI passes turn to human" << std::endl;
+                    // Activar mensaje de pase
+                    model.showPassMessage = true;
+                    model.passedPlayer = getOpponent(model.currentPlayer);
+                    model.passMessageStartTime = GetTime();
+                }
+            }
+            else {
+                std::cout << "[Main] AI has " << aiMoves.size() << " valid moves, starting AI..." << std::endl;
+                startAIThinking(model);
+            }
         }
     }
 
