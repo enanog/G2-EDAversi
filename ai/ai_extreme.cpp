@@ -11,13 +11,14 @@
  */
 
 #include "ai_extreme.h"
+
 #include <algorithm>
 #include <iostream>
 #include <limits>
 
- // ============================================================================
- // Search Configuration Constants
- // ============================================================================
+// ============================================================================
+// Search Configuration Constants
+// ============================================================================
 
 #define MAX_SEARCH_DEPTH 12
 #define TIME_LIMIT_MS 15000
@@ -28,10 +29,7 @@
 #define WIN_SCORE 100000
 #define LOSE_SCORE -100000
 
-// Bitboard masks for special board positions
-#define CORNERS 0x8100000000000081ULL
-#define EDGES 0xFF818181818181FFULL
-#define X_SQUARES 0x4228000000002842ULL
+// Note: CORNERS, EDGES, X_SQUARES already defined in model.h
 
 // Evaluation function weights
 #define WEIGHT_MOBILITY 10
@@ -48,213 +46,467 @@
 
 /**
  * @brief Advanced board evaluation with multiple heuristics
- * Combines positional scoring, mobility, stability, and game phase awareness
  */
 class AIExtreme::Evaluator {
-public:
+  public:
     static const int pieceSquareTable[64];
 
-    /**
-     * @brief Comprehensive board evaluation from player's perspective
-     * @param board Current board state
-     * @param player Player to evaluate for
-     * @return Evaluation score (positive favors the player)
-     */
     int evaluate(const Board_t& board, PlayerColor_t player) {
-        return 0; // Placeholder implementation
+        int emptyCount = getEmptyCount(board);
+
+        // In endgame, disc count matters most
+        if (emptyCount <= 10) {
+            return evaluateDiscParity(board, player) * 10;
+        }
+
+        int score = 0;
+
+        // Mobility - very important in midgame
+        score += evaluateMobility(board, player) * WEIGHT_MOBILITY;
+
+        // Corner control - always important
+        score += evaluateCorners(board, player) * WEIGHT_CORNER;
+
+        // Positional evaluation
+        score += evaluatePositional(board, player);
+
+        // Stability - more important in late-midgame
+        if (emptyCount < 30) {
+            score += evaluateStability(board, player) * WEIGHT_STABILITY;
+        }
+
+        // Frontier discs - important in opening/midgame
+        if (emptyCount > 20) {
+            score += evaluateFrontier(board, player) * WEIGHT_FRONTIER;
+        }
+
+        // Disc parity - increasingly important as game progresses
+        if (emptyCount < 20) {
+            score += evaluateDiscParity(board, player) * (30 - emptyCount);
+        }
+
+        return score;
     }
 
-    /**
-     * @brief Evaluates mobility difference between players
-     * @param board Current board state
-     * @param player Player to evaluate for
-     * @return Mobility score difference
-     */
     int evaluateMobility(const Board_t& board, PlayerColor_t player) {
-        return 0; // Placeholder implementation
+        int myMoves = getMoveCount(board, player);
+        int oppMoves = getMoveCount(board, getOpponent(player));
+
+        if (myMoves + oppMoves == 0)
+            return 0;
+
+        return myMoves - oppMoves;
     }
 
-    /**
-     * @brief Evaluates corner control advantage
-     * @param board Current board state
-     * @param player Player to evaluate for
-     * @return Corner control score difference
-     */
     int evaluateCorners(const Board_t& board, PlayerColor_t player) {
-        return 0; // Placeholder implementation
+        int myCorners = getCornerCount(board, player);
+        int oppCorners = getCornerCount(board, getOpponent(player));
+
+        return myCorners - oppCorners;
     }
 
-    /**
-     * @brief Evaluates positional advantage using piece-square table
-     * @param board Current board state
-     * @param player Player to evaluate for
-     * @return Positional score
-     */
     int evaluatePositional(const Board_t& board, PlayerColor_t player) {
-        return 0; // Placeholder implementation
+        int score = 0;
+        uint64_t myPieces = getPlayerBitboard(board, player);
+        uint64_t oppPieces = getOpponentBitboard(board, player);
+
+        for (int pos = 0; pos < 64; pos++) {
+            if (myPieces & (1ULL << pos)) {
+                score += pieceSquareTable[pos];
+            }
+            if (oppPieces & (1ULL << pos)) {
+                score -= pieceSquareTable[pos];
+            }
+        }
+
+        return score;
     }
 
-    /**
-     * @brief Evaluates piece stability (resistance to flipping)
-     * @param board Current board state
-     * @param player Player to evaluate for
-     * @return Stability score
-     */
     int evaluateStability(const Board_t& board, PlayerColor_t player) {
-        return 0; // Placeholder implementation
+        int stableScore = 0;
+        uint64_t myPieces = getPlayerBitboard(board, player);
+        uint64_t oppPieces = getOpponentBitboard(board, player);
+
+        // Corners are always stable
+        stableScore += countBits(myPieces & CORNERS) * 5;
+        stableScore -= countBits(oppPieces & CORNERS) * 5;
+
+        // Edges are semi-stable
+        stableScore += countBits(myPieces & EDGES);
+        stableScore -= countBits(oppPieces & EDGES);
+
+        return stableScore;
     }
 
-    /**
-     * @brief Evaluates frontier pieces (adjacent to empty squares)
-     * @param board Current board state
-     * @param player Player to evaluate for
-     * @return Frontier score (negative is better)
-     */
     int evaluateFrontier(const Board_t& board, PlayerColor_t player) {
-        return 0; // Placeholder implementation
+        uint64_t myPieces = getPlayerBitboard(board, player);
+        uint64_t oppPieces = getOpponentBitboard(board, player);
+        uint64_t empty = getEmptyBitboard(board);
+
+        // Find pieces adjacent to empty squares
+        uint64_t adjacentToEmpty = 0;
+        adjacentToEmpty |= (empty >> 8) | (empty << 8);  // N, S
+        adjacentToEmpty |= ((empty & ~0x0101010101010101ULL) >> 1) |
+                           ((empty & ~0x8080808080808080ULL) << 1);  // W, E
+        adjacentToEmpty |= ((empty & ~0x0101010101010101ULL) >> 9) |
+                           ((empty & ~0x8080808080808080ULL) << 9);  // NW, SE
+        adjacentToEmpty |= ((empty & ~0x8080808080808080ULL) >> 7) |
+                           ((empty & ~0x0101010101010101ULL) << 7);  // NE, SW
+
+        int myFrontier = countBits(myPieces & adjacentToEmpty);
+        int oppFrontier = countBits(oppPieces & adjacentToEmpty);
+
+        return oppFrontier - myFrontier;
     }
 
-    /**
-     * @brief Evaluates disc count parity
-     * @param board Current board state
-     * @param player Player to evaluate for
-     * @return Disc count difference
-     */
     int evaluateDiscParity(const Board_t& board, PlayerColor_t player) {
-        return 0; // Placeholder implementation
+        return getScoreDiff(board, player);
     }
 };
 
-// Piece-square table with positional values (corners are best, edges are good)
+// Piece-square table
 const int AIExtreme::Evaluator::pieceSquareTable[64] = {
-    100, -20, 10, 5, 5, 10, -20, 100,
-    -20, -50, -2, -2, -2, -2, -50, -20,
-    10, -2, 5, 1, 1, 5, -2, 10,
-    5, -2, 1, 1, 1, 1, -2, 5,
-    5, -2, 1, 1, 1, 1, -2, 5,
-    10, -2, 5, 1, 1, 5, -2, 10,
-    -20, -50, -2, -2, -2, -2, -50, -20,
-    100, -20, 10, 5, 5, 10, -20, 100
-};
+    100, -20, 10, 5,  5,  10, -20, 100, -20, -50, -2, -2, -2, -2, -50, -20,
+    10,  -2,  5,  1,  1,  5,  -2,  10,  5,   -2,  1,  1,  1,  1,  -2,  5,
+    5,   -2,  1,  1,  1,  1,  -2,  5,   10,  -2,  5,  1,  1,  5,  -2,  10,
+    -20, -50, -2, -2, -2, -2, -50, -20, 100, -20, 10, 5,  5,  10, -20, 100};
 
 // ============================================================================
 // SearchEngine Implementation
 // ============================================================================
 
-/**
- * @brief Advanced search engine with iterative deepening and transposition tables
- * Implements time-limited search with move ordering and alpha-beta pruning
- */
 class AIExtreme::SearchEngine {
-public:
+  public:
     SearchEngine();
-
-    /**
-     * @brief Main search function to find best move
-     * @param board Current board state
-     * @param player Player to move
-     * @param timeLimitSeconds Maximum time for search in seconds
-     * @return Best move found, or MOVE_NONE if no move found
-     */
     Move_t search(Board_t& board, PlayerColor_t player, double timeLimitSeconds);
 
-private:
+    int getNodesSearched() const {
+        return nodesSearched;
+    }
+    int getMaxDepth() const {
+        return maxDepthReached;
+    }
+
+  private:
     Evaluator evaluator;
     TranspositionTable tt;
 
-    // Search statistics
     int nodesSearched;
     int cutoffs;
     int maxDepthReached;
-
-    // Principal variation move from previous search iteration
     Move_t pvMove;
 
-    // Time management
     std::chrono::time_point<std::chrono::high_resolution_clock> searchStartTime;
     double timeLimit;
 
-    /**
-     * @brief Checks if search time limit has been exceeded
-     * @return true if time limit reached, false otherwise
-     */
-    bool isTimeUp() {
-        return false; // Placeholder implementation
-    }
+    bool isTimeUp();
+    Move_t rootSearch(Board_t& board, PlayerColor_t player, int depth, int alpha, int beta);
+    int negamax(
+        Board_t& board, PlayerColor_t player, int depth, int alpha, int beta, uint64_t hash);
+    void orderMoves(MoveList& moves, const Board_t& board, PlayerColor_t player);
+    int scoreMoveForOrdering(Move_t move, const Board_t& board, PlayerColor_t player);
 };
 
-/**
- * @brief SearchEngine constructor - initializes search state
- */
 AIExtreme::SearchEngine::SearchEngine()
     : nodesSearched(0),
-    cutoffs(0),
-    maxDepthReached(0),
-    pvMove(MOVE_NONE),
-    timeLimit(5.0) {
-    // Search engine initialized with default values
+      cutoffs(0),
+      maxDepthReached(0),
+      pvMove(MOVE_NONE),
+      timeLimit(TIME_LIMIT_MS / 1000.0) {
 }
 
-/**
- * @brief Main search function with time management
- * @param board Current board state
- * @param player Player to move
- * @param timeLimitSeconds Maximum search time in seconds
- * @return Best move found during search
- */
-Move_t AIExtreme::SearchEngine::search(Board_t& board, PlayerColor_t player, double timeLimitSeconds) {
-    // Placeholder implementation - would implement iterative deepening with negamax here
-    return MOVE_NONE;
+bool AIExtreme::SearchEngine::isTimeUp() {
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = currentTime - searchStartTime;
+    return elapsed.count() >= timeLimit;
+}
+
+Move_t AIExtreme::SearchEngine::search(Board_t& board,
+                                       PlayerColor_t player,
+                                       double timeLimitSeconds) {
+    searchStartTime = std::chrono::high_resolution_clock::now();
+    timeLimit = timeLimitSeconds;
+    nodesSearched = 0;
+    cutoffs = 0;
+    maxDepthReached = 0;
+
+    tt.newSearch();
+
+    Move_t bestMove = MOVE_NONE;
+    int emptyCount = getEmptyCount(board);
+
+    int maxDepth = MAX_SEARCH_DEPTH;
+    if (emptyCount <= ENDGAME_THRESHOLD) {
+        maxDepth = ENDGAME_DEPTH;
+    }
+
+    // Iterative deepening
+    for (int depth = 1; depth <= maxDepth; depth++) {
+        if (isTimeUp())
+            break;
+
+        Move_t currentBest = rootSearch(board, player, depth, -INFINITY_SCORE, INFINITY_SCORE);
+
+        if (currentBest != MOVE_NONE) {
+            bestMove = currentBest;
+            pvMove = currentBest;
+            maxDepthReached = depth;
+        }
+
+        // if (isTimeUp())
+        //     break;
+    }
+
+    std::cout << "Search complete: Depth=" << maxDepthReached << " Nodes=" << nodesSearched
+              << " Cutoffs=" << cutoffs << std::endl;
+
+    tt.printStats();
+
+    return bestMove;
+}
+
+Move_t AIExtreme::SearchEngine::rootSearch(
+    Board_t& board, PlayerColor_t player, int depth, int alpha, int beta) {
+    MoveList moves;
+    getValidMovesAI(board, player, moves);
+
+    if (moves.empty())
+        return MOVE_NONE;
+
+    uint64_t hash = tt.computeHash(board, player);
+
+    Move_t ttMove = tt.getBestMove(hash);
+    if (ttMove != MOVE_NONE) {
+        auto it = std::find(moves.begin(), moves.end(), ttMove);
+        if (it != moves.end()) {
+            moves.erase(it);
+            moves.insert(moves.begin(), ttMove);
+        }
+    }
+
+    orderMoves(moves, board, player);
+
+    Move_t bestMove = moves[0];
+    int bestScore = -INFINITY_SCORE;
+    int bound = BOUND_UPPER;
+
+    for (Move_t move : moves) {
+        if (isTimeUp())
+            break;
+
+        PlayerColor_t nextPlayer = player;
+        uint64_t playerBB = getPlayerBitboard(board, player);
+        uint64_t opponentBB = getOpponentBitboard(board, player);
+        uint64_t flips = calculateFlips(playerBB, opponentBB, move);
+
+        BoardState_t state = makeMove(board, nextPlayer, move);
+        uint64_t nextHash = tt.updateHash(hash, move, flips, player);
+
+        int score = -negamax(board, nextPlayer, depth - 1, -beta, -alpha, nextHash);
+
+        unmakeMove(board, nextPlayer, state);
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
+
+        if (score > alpha) {
+            alpha = score;
+            bound = BOUND_EXACT;
+        }
+
+        if (alpha >= beta) {
+            cutoffs++;
+            bound = BOUND_LOWER;
+            break;
+        }
+    }
+
+    tt.store(hash, depth, bestScore, bound, bestMove);
+
+    return bestMove;
+}
+
+int AIExtreme::SearchEngine::negamax(
+    Board_t& board, PlayerColor_t player, int depth, int alpha, int beta, uint64_t hash) {
+    nodesSearched++;
+
+    int ttScore;
+    Move_t ttMove = MOVE_NONE;
+    if (tt.probe(hash, depth, alpha, beta, ttScore, ttMove)) {
+        return ttScore;
+    }
+
+    if (depth == 0 || isTerminal(board, player)) {
+        int score = evaluator.evaluate(board, player);
+        tt.store(hash, depth, score, BOUND_EXACT, MOVE_NONE);
+        return score;
+    }
+
+    if ((nodesSearched & 0x3FF) == 0 && isTimeUp()) {
+        return evaluator.evaluate(board, player);
+    }
+
+    MoveList moves;
+    getValidMovesAI(board, player, moves);
+
+    if (moves.empty()) {
+        PlayerColor_t opponent = getOpponent(player);
+
+        if (!hasValidMoves(board, opponent)) {
+            int finalScore = getScoreDiff(board, player);
+            int score;
+            if (finalScore > 0)
+                score = WIN_SCORE;
+            else if (finalScore < 0)
+                score = LOSE_SCORE;
+            else
+                score = 0;
+
+            tt.store(hash, depth, score, BOUND_EXACT, MOVE_NONE);
+            return score;
+        }
+
+        uint64_t passHash = hash ^ tt.getZobristPlayer();
+        return -negamax(board, opponent, depth - 1, -beta, -alpha, passHash);
+    }
+
+    if (ttMove != MOVE_NONE) {
+        auto it = std::find(moves.begin(), moves.end(), ttMove);
+        if (it != moves.end()) {
+            moves.erase(it);
+            moves.insert(moves.begin(), ttMove);
+        }
+    }
+
+    orderMoves(moves, board, player);
+
+    int bestScore = -INFINITY_SCORE;
+    Move_t bestMove = moves[0];
+    int bound = BOUND_UPPER;
+
+    for (Move_t move : moves) {
+        PlayerColor_t nextPlayer = player;
+        uint64_t playerBB = getPlayerBitboard(board, player);
+        uint64_t opponentBB = getOpponentBitboard(board, player);
+        uint64_t flips = calculateFlips(playerBB, opponentBB, move);
+
+        BoardState_t state = makeMove(board, nextPlayer, move);
+        uint64_t nextHash = tt.updateHash(hash, move, flips, player);
+
+        int score = -negamax(board, nextPlayer, depth - 1, -beta, -alpha, nextHash);
+
+        unmakeMove(board, nextPlayer, state);
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
+
+        if (score > alpha) {
+            alpha = score;
+            bound = BOUND_EXACT;
+        }
+
+        if (alpha >= beta) {
+            cutoffs++;
+            bound = BOUND_LOWER;
+            bestScore = beta;
+            break;
+        }
+    }
+
+    tt.store(hash, depth, bestScore, bound, bestMove);
+
+    return bestScore;
+}
+
+void AIExtreme::SearchEngine::orderMoves(MoveList& moves,
+                                         const Board_t& board,
+                                         PlayerColor_t player) {
+    std::sort(moves.begin(), moves.end(), [this, &board, player](Move_t a, Move_t b) {
+        if (a == pvMove)
+            return true;
+        if (b == pvMove)
+            return false;
+
+        return scoreMoveForOrdering(a, board, player) > scoreMoveForOrdering(b, board, player);
+    });
+}
+
+int AIExtreme::SearchEngine::scoreMoveForOrdering(Move_t move,
+                                                  const Board_t& board,
+                                                  PlayerColor_t player) {
+    int score = 0;
+
+    if ((1ULL << move) & CORNERS) {
+        score += 10000;
+    } else if ((1ULL << move) & X_SQUARES) {
+        score -= 5000;
+    } else if ((1ULL << move) & EDGES) {
+        score += 100;
+    }
+
+    uint64_t playerBB = getPlayerBitboard(board, player);
+    uint64_t opponentBB = getOpponentBitboard(board, player);
+    int flips = countBits(calculateFlips(playerBB, opponentBB, move));
+    score += flips * 10;
+
+    Board_t testBoard = board;
+    PlayerColor_t testPlayer = player;
+    makeMove(testBoard, testPlayer, move);
+    int oppMobility = getMoveCount(testBoard, testPlayer);
+    score -= oppMobility * 5;
+
+    return score;
 }
 
 // ============================================================================
 // AIExtreme Main Implementation
 // ============================================================================
 
-/**
- * @brief AIExtreme constructor - initializes search engine
- */
 AIExtreme::AIExtreme() {
     engine = std::make_unique<SearchEngine>();
 }
 
-/**
- * @brief AIExtreme destructor - default implementation
- */
 AIExtreme::~AIExtreme() = default;
 
-/**
- * @brief Main AI entry point - finds best move for current position
- * @param model Current game model containing board state and player
- * @return Best move found, or first valid move as fallback
- */
 Move_t AIExtreme::getBestMove(GameModel& model) {
-    // Extract board and player from model
     Board_t board = model.board;
     PlayerColor_t player = model.currentPlayer;
 
-    // Get all valid moves for current position
     std::vector<Move_t> validMoves;
     getValidMovesAI(board, player, validMoves);
 
-    // Handle no moves available
     if (validMoves.empty()) {
         return MOVE_NONE;
     }
 
-    // Handle only one move available
     if (validMoves.size() == 1) {
+        std::cout << "Only one move available: " << (int)validMoves[0] << std::endl;
         return validMoves[0];
     }
 
-    // Convert time limit to seconds and perform search
     double timeLimit = TIME_LIMIT_MS / 1000.0;
     Move_t bestMove = engine->search(board, player, timeLimit);
 
-    // Fallback to first valid move if search found nothing
     if (bestMove == MOVE_NONE) {
         bestMove = validMoves[0];
     }
 
+    std::cout << "AI chooses move: " << (int)bestMove << " [" << (char)('A' + getMoveX(bestMove))
+              << (getMoveY(bestMove) + 1) << "]" << std::endl;
+
     return bestMove;
+}
+
+void AIExtreme::getSearchStats(int& nodesSearched, int& maxDepth) const {
+    if (engine) {
+        nodesSearched = engine->getNodesSearched();
+        maxDepth = engine->getMaxDepth();
+    } else {
+        nodesSearched = 0;
+        maxDepth = 0;
+    }
 }
