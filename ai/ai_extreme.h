@@ -17,6 +17,7 @@
 #include <memory>
 #include <vector>
 
+#include "../opening_book.h"
 #include "../transposition_table.h"
 #include "ai_interface.h"
 
@@ -31,10 +32,19 @@ class AIExtreme : public AIInterface {
     class SearchEngine;
 
     std::unique_ptr<SearchEngine> engine;
+    std::unique_ptr<OpeningBook> book;
+    int moveCount;  // Track move number for book depth
 
   public:
     AIExtreme();
     virtual ~AIExtreme();
+
+    /**
+     * @brief Loads opening book from file or directory
+     * @param path Path to .wtb file or directory containing .wtb files
+     * @return Number of games loaded
+     */
+    int loadOpeningBook(const std::string& path);
 
     virtual Move_t getBestMove(GameModel& model) override;
 
@@ -44,7 +54,6 @@ class AIExtreme : public AIInterface {
 
     virtual void getSearchStats(int& nodesSearched, int& maxDepth) const override;
 };
-
 
 // ============================================================================
 // AI Configuration Constants

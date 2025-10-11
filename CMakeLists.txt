@@ -23,6 +23,7 @@ add_executable(main
     view.cpp
     controller.cpp
     transposition_table.cpp
+    opening_book.cpp
 
     ai/ai_factory.cpp
     ai/ai_easy.cpp

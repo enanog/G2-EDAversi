@@ -13,8 +13,11 @@
 #include "ai_extreme.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <limits>
+
+namespace fs = std::filesystem;
 
 // ============================================================================
 // Search Configuration Constants
@@ -177,6 +180,8 @@ const int AIExtreme::Evaluator::pieceSquareTable[64] = {
 
 class AIExtreme::SearchEngine {
   public:
+    TranspositionTable tt;  // Make public so OpeningBook can share it
+
     SearchEngine();
     Move_t search(Board_t& board, PlayerColor_t player, double timeLimitSeconds);
 
@@ -189,7 +194,6 @@ class AIExtreme::SearchEngine {
 
   private:
     Evaluator evaluator;
-    TranspositionTable tt;
 
     int nodesSearched;
     int cutoffs;
@@ -253,8 +257,8 @@ Move_t AIExtreme::SearchEngine::search(Board_t& board,
             maxDepthReached = depth;
         }
 
-        // if (isTimeUp())
-        //     break;
+        if (isTimeUp())
+            break;
     }
 
     std::cout << "Search complete: Depth=" << maxDepthReached << " Nodes=" << nodesSearched
@@ -466,11 +470,21 @@ int AIExtreme::SearchEngine::scoreMoveForOrdering(Move_t move,
 // AIExtreme Main Implementation
 // ============================================================================
 
-AIExtreme::AIExtreme() {
+AIExtreme::AIExtreme() : moveCount(0) {
     engine = std::make_unique<SearchEngine>();
+    book = std::make_unique<OpeningBook>(&engine->tt);  // Share TT with book
 }
 
 AIExtreme::~AIExtreme() = default;
+
+int AIExtreme::loadOpeningBook(const std::string& path) {
+    // Check if path is a file or directory
+    if (fs::is_directory(path)) {
+        return book->load(path);
+    } else {
+        return book->loadFile(path);
+    }
+}
 
 Move_t AIExtreme::getBestMove(GameModel& model) {
     Board_t board = model.board;
@@ -485,9 +499,26 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
 
     if (validMoves.size() == 1) {
         std::cout << "Only one move available: " << (int)validMoves[0] << std::endl;
+        moveCount++;
         return validMoves[0];
     }
 
+    // Try opening book first
+    Move_t bookMove = book->probe(board, player, moveCount);
+    if (bookMove != MOVE_NONE) {
+        // Verify book move is legal
+        auto it = std::find(validMoves.begin(), validMoves.end(), bookMove);
+        if (it != validMoves.end()) {
+            std::cout << "Opening book move: " << (int)bookMove << " ["
+                      << (char)('A' + getMoveX(bookMove)) << (getMoveY(bookMove) + 1) << "] (from "
+                      << book->getTotalGames() << " games)" << std::endl;
+            moveCount++;
+            return bookMove;
+        }
+    }
+
+    // Not in book - use search
+    std::cout << "Position not in book, searching..." << std::endl;
     double timeLimit = TIME_LIMIT_MS / 1000.0;
     Move_t bestMove = engine->search(board, player, timeLimit);
 
@@ -498,6 +529,7 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
     std::cout << "AI chooses move: " << (int)bestMove << " [" << (char)('A' + getMoveX(bestMove))
               << (getMoveY(bestMove) + 1) << "]" << std::endl;
 
+    moveCount++;
     return bestMove;
 }
 
