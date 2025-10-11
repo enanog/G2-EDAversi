@@ -175,13 +175,36 @@ void drawView(GameModel& model) {
     if (!model.gameOver) {
         MoveList validMoves;
         getValidMoves(model, validMoves);
+
+        // Obtener bitboards del jugador actual
+        uint64_t player = getPlayerBitboard(model.board, getCurrentPlayer(model));
+        uint64_t opponent = getOpponentBitboard(model.board, getCurrentPlayer(model));
+		Color highlightColor = (getCurrentPlayer(model) == PLAYER_BLACK) ? BLACK : WHITE;
+
         for (Move_t move : validMoves) {
             int x = getMoveX(move);
             int y = getMoveY(move);
-            DrawCircle((int)(BOARD_X + (float)x * SQUARE_SIZE) + PIECE_CENTER,
-                (int)(BOARD_Y + (float)y * SQUARE_SIZE) + PIECE_CENTER,
-                PIECE_RADIUS / 4,
-                RED);
+
+            // Calcular centro del círculo
+            int centerX = (int)(BOARD_X + (float)x * SQUARE_SIZE) + PIECE_CENTER;
+            int centerY = (int)(BOARD_Y + (float)y * SQUARE_SIZE) + PIECE_CENTER;
+
+            // Dibujar punto rojo
+            DrawCircle(centerX, centerY, PIECE_RADIUS, highlightColor);
+            DrawCircle(centerX, centerY, PIECE_RADIUS * 0.8, DARKGREEN);
+
+            // Calcular cantidad de fichas que se voltearían
+            uint64_t flips = calculateFlips(player, opponent, move);
+            int flipCount = countBits(flips);
+
+            // Dibujar el número de flips
+            // Ajustar posición según cantidad de dígitos para centrar mejor
+            const char* text = TextFormat("%d", flipCount);
+            int fontSize = 30;
+            int textWidth = MeasureText(text, fontSize);
+
+            // Dibujar texto con borde negro para mejor legibilidad
+            DrawText(text, centerX, centerY, fontSize, highlightColor);
         }
     }
 

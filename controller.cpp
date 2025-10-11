@@ -59,6 +59,7 @@ void aiWorkerFunction(GameModel* modelPtr) {
     std::cout << "[AI Thread] Using: " << currentAI->getName() << std::endl;
 
     // Polymorphic AI call
+	for (uint64_t i = 0; i < 0xFFFFFFFF; i++); // Simulate thinking delay
     Move_t bestMove = currentAI->getBestMove(localModel);
 
     std::cout << "[AI Thread] Found move: " << (int)bestMove << std::endl;
