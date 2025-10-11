@@ -1,28 +1,29 @@
 /**
- * @brief Implements the Reversi game view
+ * @brief Implements the Reversi game view with difficulty selection menu
  * @author Marc S. Ressl
- * @modified:
- *			Agustin Valenzuela,
- *			Alex Petersen,
- *			Dylan Frigerio,
- *			Enzo Fernadez Rosas
+ * @modifiers:
+ *          Agustin Valenzuela,
+ *          Alex Petersen,
+ *          Dylan Frigerio,
+ *          Enzo Fernandez Rosas
  *
  * @copyright Copyright (c) 2023-2024
  */
-
-#include "view.h"
 
 #include <cmath>
 #include <string>
 
 #include "controller.h"
 #include "raylib.h"
+#include "view.h"
 
 #define GAME_NAME "EDAversi"
 
+ // Window configuration
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
 
+// Board rendering constants
 #define SQUARE_SIZE 80
 #define SQUARE_PADDING 1.5F
 #define SQUARE_CONTENT_OFFSET (SQUARE_PADDING)
@@ -41,9 +42,11 @@
 #define OUTERBORDER_WIDTH 10
 #define OUTERBORDER_SIZE (BOARD_CONTENT_SIZE + 2 * OUTERBORDER_PADDING)
 
+// Text rendering constants
 #define TITLE_FONT_SIZE 72
 #define SUBTITLE_FONT_SIZE 36
 
+// Info panel positioning
 #define INFO_CENTERED_X (OUTERBORDER_SIZE + (WINDOW_WIDTH - OUTERBORDER_SIZE) / 2)
 
 #define INFO_TITLE_Y (WINDOW_HEIGHT / 2)
@@ -54,6 +57,7 @@
 #define INFO_BLACK_SCORE_Y (WINDOW_HEIGHT * 3 / 4 - SUBTITLE_FONT_SIZE / 2)
 #define INFO_BLACK_TIME_Y (WINDOW_HEIGHT * 3 / 4 + SUBTITLE_FONT_SIZE / 2)
 
+// Button configuration
 #define INFO_BUTTON_WIDTH 280
 #define INFO_BUTTON_HEIGHT 64
 
@@ -62,6 +66,13 @@
 
 #define INFO_PLAYWHITE_BUTTON_X INFO_CENTERED_X
 #define INFO_PLAYWHITE_BUTTON_Y (WINDOW_HEIGHT * 7 / 8)
+
+// AI difficulty selection button positions
+#define AI_BUTTON_X (WINDOW_WIDTH * 1 / 2)
+#define AI_EASY_BUTTON_Y (WINDOW_HEIGHT * 3 / 8)
+#define AI_NORMAL_BUTTON_Y (WINDOW_HEIGHT * 4 / 8)
+#define AI_HARD_BUTTON_Y (WINDOW_HEIGHT * 5 / 8)
+#define AI_EXTREME_BUTTON_Y (WINDOW_HEIGHT * 6 / 8)
 
 void initView() {
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, GAME_NAME);
@@ -73,46 +84,46 @@ void freeView() {
 }
 
 /**
- * @brief Draws centered text.
+ * @brief Draws text centered around specified position
  */
-static void drawCenteredText(Vector2 position, int fontSize, std::string s) {
-    DrawText(s.c_str(),
-        (int)position.x - MeasureText(s.c_str(), fontSize) / 2,
+static void drawCenteredText(Vector2 position, int fontSize, std::string text) {
+    DrawText(text.c_str(),
+        (int)position.x - MeasureText(text.c_str(), fontSize) / 2,
         (int)position.y - fontSize / 2,
         fontSize,
         BROWN);
 }
 
 /**
- * @brief Draws a player's score.
+ * @brief Draws player score with label
  */
 static void drawScore(std::string label, Vector2 position, int score) {
-    std::string s = label + std::to_string(score);
-    drawCenteredText(position, SUBTITLE_FONT_SIZE, s);
+    std::string displayText = label + std::to_string(score);
+    drawCenteredText(position, SUBTITLE_FONT_SIZE, displayText);
 }
 
 /**
- * @brief Draws a player's timer.
+ * @brief Draws formatted timer (MM:SS)
  */
 static void drawTimer(Vector2 position, double time) {
     int totalSeconds = (int)time;
     int seconds = totalSeconds % 60;
     int minutes = totalSeconds / 60;
 
-    std::string s;
+    std::string timeString;
     if (minutes < 10)
-        s.append("0");
-    s.append(std::to_string(minutes));
-    s.append(":");
+        timeString.append("0");
+    timeString.append(std::to_string(minutes));
+    timeString.append(":");
     if (seconds < 10)
-        s.append("0");
-    s.append(std::to_string(seconds));
+        timeString.append("0");
+    timeString.append(std::to_string(seconds));
 
-    drawCenteredText(position, SUBTITLE_FONT_SIZE, s);
+    drawCenteredText(position, SUBTITLE_FONT_SIZE, timeString);
 }
 
 /**
- * @brief Draws a button.
+ * @brief Draws a rectangular button with centered text
  */
 static void drawButton(Vector2 position, std::string label, Color backgroundColor) {
     DrawRectangle(position.x - INFO_BUTTON_WIDTH / 2,
@@ -125,7 +136,7 @@ static void drawButton(Vector2 position, std::string label, Color backgroundColo
 }
 
 /**
- * @brief Indicates whether the mouse pointer is over a button.
+ * @brief Checks if mouse pointer is within button bounds
  */
 static bool isMousePointerOverButton(Vector2 position) {
     Vector2 mousePosition = GetMousePosition();
@@ -141,9 +152,10 @@ void drawView(GameModel& model) {
 
     ClearBackground(BEIGE);
 
+    // Draw outer board border
     DrawRectangle(OUTERBORDER_X, OUTERBORDER_Y, OUTERBORDER_SIZE, OUTERBORDER_SIZE, BLACK);
 
-	// Draw board squares
+    // Draw board squares
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
             Vector2 position = { BOARD_X + (float)x * SQUARE_SIZE,
@@ -159,7 +171,7 @@ void drawView(GameModel& model) {
         }
     }
 
-	// Draw valid moves
+    // Highlight valid moves during active gameplay
     if (!model.gameOver) {
         MoveList validMoves;
         getValidMoves(model, validMoves);
@@ -173,7 +185,7 @@ void drawView(GameModel& model) {
         }
     }
 
-    // Draw pieces
+    // Draw game pieces
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
             Move_t move = coordsToMove(x, y);
@@ -190,7 +202,7 @@ void drawView(GameModel& model) {
         }
     }
 
-	// Draw info panel
+    // Draw information panel
     drawScore("Black score: ", { INFO_CENTERED_X, INFO_WHITE_SCORE_Y },
         getScore(model, PLAYER_BLACK));
     drawTimer({ INFO_CENTERED_X, INFO_WHITE_TIME_Y }, getTimer(model, PLAYER_BLACK));
@@ -199,6 +211,7 @@ void drawView(GameModel& model) {
         getScore(model, PLAYER_WHITE));
     drawTimer({ INFO_CENTERED_X, INFO_BLACK_TIME_Y }, getTimer(model, PLAYER_WHITE));
 
+    // Show game over buttons
     if (model.gameOver) {
         drawButton({ INFO_PLAYBLACK_BUTTON_X, INFO_PLAYBLACK_BUTTON_Y }, "Play black", BLACK);
         drawButton({ INFO_PLAYWHITE_BUTTON_X, INFO_PLAYWHITE_BUTTON_Y }, "Play white", WHITE);
@@ -227,4 +240,48 @@ bool isMousePointerOverPlayBlackButton() {
 
 bool isMousePointerOverPlayWhiteButton() {
     return isMousePointerOverButton({ INFO_PLAYWHITE_BUTTON_X, INFO_PLAYWHITE_BUTTON_Y });
+}
+
+// AI difficulty button handlers
+bool isMousePointerOverAIEasyButton() {
+    return isMousePointerOverButton({ AI_BUTTON_X, AI_EASY_BUTTON_Y });
+}
+
+bool isMousePointerOverAINormalButton() {
+    return isMousePointerOverButton({ AI_BUTTON_X, AI_NORMAL_BUTTON_Y });
+}
+
+bool isMousePointerOverAIHardButton() {
+    return isMousePointerOverButton({ AI_BUTTON_X, AI_HARD_BUTTON_Y });
+}
+
+bool isMousePointerOverAIExtremeButton() {
+    return isMousePointerOverButton({ AI_BUTTON_X, AI_EXTREME_BUTTON_Y });
+}
+
+/**
+ * @brief Draws AI difficulty selection buttons
+ */
+void drawAIDifficultyButtons() {
+    drawButton({ AI_BUTTON_X, AI_EASY_BUTTON_Y }, "Easy AI", LIGHTGRAY);
+    drawButton({ AI_BUTTON_X, AI_NORMAL_BUTTON_Y }, "Normal AI", GRAY);
+    drawButton({ AI_BUTTON_X, AI_HARD_BUTTON_Y }, "Hard AI", DARKGRAY);
+    drawButton({ AI_BUTTON_X, AI_EXTREME_BUTTON_Y }, "Extreme AI", MAROON);
+}
+
+/**
+ * @brief Draws main menu screen with title and difficulty selection
+ */
+void drawMainMenu() {
+    BeginDrawing();
+    ClearBackground(BEIGE);
+
+    // Title section
+    drawCenteredText({ INFO_CENTERED_X, (float)WINDOW_HEIGHT * 1 / 6 }, TITLE_FONT_SIZE, GAME_NAME);
+    drawCenteredText({ INFO_CENTERED_X, (float)WINDOW_HEIGHT * 2 / 6 }, SUBTITLE_FONT_SIZE, "Select AI difficulty");
+
+    // Difficulty selection buttons
+    drawAIDifficultyButtons();
+
+    EndDrawing();
 }

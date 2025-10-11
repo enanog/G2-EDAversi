@@ -1,11 +1,11 @@
 /**
  * @brief Implements the Reversi game controller with AI threading
  * @author Marc S. Ressl
- * @modified:
- *			Agustin Valenzuela,
- *			Alex Petersen,
- *			Dylan Frigerio,
- *			Enzo Fernadez Rosas
+ * @modifiers:
+ *          Agustin Valenzuela,
+ *          Alex Petersen,
+ *          Dylan Frigerio,
+ *          Enzo Fernandez Rosas
  *
  * @copyright Copyright (c) 2023-2024
  */
@@ -15,39 +15,55 @@
 #include <atomic>
 #include <mutex>
 #include <iostream>
+#include <memory>
 
 #include "raylib.h"
-
-#include "ai.h"
+#include "ai/ai_factory.h"
 #include "view.h"
 #include "controller.h"
 
- // Threading globals
+ // Threading synchronization
 static std::thread aiThread;
 static std::atomic<bool> aiThreadRunning(false);
 static std::mutex aiMutex;
 
+// Current AI instance
+static std::unique_ptr<AIInterface> currentAI;
+
+// Menu state
+static bool menuActive = true;
+
 /**
- * @brief AI worker function - runs in separate thread
+ * @brief AI worker function running in separate thread
+ * @param modelPtr Pointer to game model for analysis
  */
 void aiWorkerFunction(GameModel* modelPtr) {
     std::cout << "[AI Thread] Started thinking..." << std::endl;
 
-    // Create a deep copy of the model for thread safety
+    // Create thread-safe copy of model
     GameModel localModel;
     {
         std::lock_guard<std::mutex> lock(aiMutex);
         localModel = *modelPtr;
     }
 
-    std::cout << "[AI Thread] Calculating best move..." << std::endl;
+    // Verify AI instance exists
+    if (!currentAI) {
+        std::cerr << "[AI Thread] ERROR: No AI instance!" << std::endl;
+        std::lock_guard<std::mutex> lock(aiMutex);
+        modelPtr->aiThinking = false;
+        aiThreadRunning = false;
+        return;
+    }
 
-    // Calculate best move (this takes time)
-    Move_t bestMove = getBestMove(localModel);
+    std::cout << "[AI Thread] Using: " << currentAI->getName() << std::endl;
+
+    // Polymorphic AI call
+    Move_t bestMove = currentAI->getBestMove(localModel);
 
     std::cout << "[AI Thread] Found move: " << (int)bestMove << std::endl;
 
-    // Lock and write result
+    // Store result with thread safety
     {
         std::lock_guard<std::mutex> lock(aiMutex);
         modelPtr->aiMove = bestMove;
@@ -59,14 +75,17 @@ void aiWorkerFunction(GameModel* modelPtr) {
 }
 
 /**
- * @brief Starts AI thinking in background thread
+ * @brief Starts AI analysis in background thread
  */
 void startAIThinking(GameModel& model) {
     std::cout << "[Main] Starting AI thinking..." << std::endl;
 
-    // If there's an old thread, make sure it's joined
+    if (!currentAI) {
+        std::cerr << "[Main] ERROR: No AI initialized! Call initializeAI() first." << std::endl;
+        return;
+    }
+
     if (aiThread.joinable()) {
-        std::cout << "[Main] Joining old thread..." << std::endl;
         aiThread.join();
     }
 
@@ -74,17 +93,16 @@ void startAIThinking(GameModel& model) {
     model.aiMove = MOVE_NONE;
     aiThreadRunning = true;
 
-    // Launch new AI thread
     aiThread = std::thread(aiWorkerFunction, &model);
 
     std::cout << "[Main] AI thread launched!" << std::endl;
 }
 
 /**
- * @brief Checks if AI has finished and applies move if ready
+ * @brief Checks for and applies completed AI move
+ * @return true if AI move was applied
  */
 bool checkAndApplyAIMove(GameModel& model) {
-    // Check if AI has finished (thread-safe read)
     bool isThinking;
     Move_t move;
 
@@ -94,15 +112,12 @@ bool checkAndApplyAIMove(GameModel& model) {
         move = model.aiMove;
     }
 
-    // If AI finished thinking and has a valid move
     if (!isThinking && move != MOVE_NONE) {
         std::cout << "[Main] AI finished! Applying move: " << (int)move << std::endl;
 
-        // Apply the move
         playMove(model, move);
         model.aiMove = MOVE_NONE;
 
-        // Join the thread
         if (aiThread.joinable()) {
             aiThread.join();
         }
@@ -114,17 +129,85 @@ bool checkAndApplyAIMove(GameModel& model) {
     return false;
 }
 
+// AI management implementation
+void initializeAI(AIDifficulty difficulty) {
+    std::cout << "[Controller] Initializing AI: "
+        << AIFactory::getDifficultyName(difficulty) << std::endl;
+
+    currentAI = AIFactory::createAI(difficulty);
+
+    if (currentAI) {
+        std::cout << "[Controller] AI ready: " << currentAI->getName() << std::endl;
+    }
+    else {
+        std::cerr << "[Controller] ERROR: Failed to create AI!" << std::endl;
+    }
+}
+
+void changeAIDifficulty(AIDifficulty difficulty) {
+    if (aiThreadRunning) {
+        std::cerr << "[Controller] Cannot change AI while thinking!" << std::endl;
+        return;
+    }
+
+    if (aiThread.joinable()) {
+        aiThread.join();
+    }
+
+    initializeAI(difficulty);
+}
+
+const char* getCurrentAIName() {
+    if (currentAI) {
+        return currentAI->getName();
+    }
+    return "No AI";
+}
+
+/**
+ * @brief Main controller loop handling input and game flow
+ */
 bool updateView(GameModel& model) {
     if (WindowShouldClose()) {
-        // Clean up AI thread before exiting
         if (aiThread.joinable()) {
             aiThread.join();
         }
         return false;
     }
 
+    // Handle main menu if active
+    if (menuActive) {
+        drawMainMenu();
+
+        // Process difficulty selection clicks
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            if (isMousePointerOverAIEasyButton()) {
+                std::cout << "[Menu] Easy AI selected\n";
+                initializeAI(AIDifficulty::AI_EASY);
+                menuActive = false;
+            }
+            else if (isMousePointerOverAINormalButton()) {
+                std::cout << "[Menu] Normal AI selected\n";
+                initializeAI(AIDifficulty::AI_NORMAL);
+                menuActive = false;
+            }
+            else if (isMousePointerOverAIHardButton()) {
+                std::cout << "[Menu] Hard AI selected\n";
+                initializeAI(AIDifficulty::AI_HARD);
+                menuActive = false;
+            }
+            else if (isMousePointerOverAIExtremeButton()) {
+                std::cout << "[Menu] Extreme AI selected\n";
+                initializeAI(AIDifficulty::AI_EXTREME);
+                menuActive = false;
+            }
+        }
+
+        return true;
+    }
+
+    // Normal gameplay flow
     if (model.gameOver) {
-        // Game over screen
         if (IsMouseButtonPressed(0)) {
             if (isMousePointerOverPlayBlackButton()) {
                 std::cout << "[Main] Starting new game - Human plays BLACK" << std::endl;
@@ -139,12 +222,11 @@ bool updateView(GameModel& model) {
         }
     }
     else if (model.currentPlayer == model.humanPlayer) {
-        // Human turn
+        // Human player turn
         if (IsMouseButtonPressed(0)) {
             Move_t move = getMoveOnMousePointer();
 
             if (move != MOVE_NONE) {
-                // Check if move is valid
                 MoveList validMoves;
                 getValidMoves(model, validMoves);
 
@@ -157,7 +239,7 @@ bool updateView(GameModel& model) {
         }
     }
     else {
-        // AI turn
+        // AI player turn
         if (checkAndApplyAIMove(model)) {
             std::cout << "[Main] AI move processed, next turn." << std::endl;
         }
