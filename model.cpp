@@ -1,8 +1,19 @@
+/**
+ * @brief Implements the Reversi game model
+ * @author Marc S. Ressl
+ * @modifiers:
+ *          Agustin Valenzuela,
+ *          Alex Petersen,
+ *          Dylan Frigerio,
+ *          Enzo Fernandez Rosas
+ *
+ * @copyright Copyright (c) 2023-2024
+ */
+
 #include "model.h"
 
 #include <cstdlib>  // abs
 #include <iostream>
-
 #include "raylib.h" // for GetTime()
 
 // Bitboard edge masks
@@ -24,9 +35,9 @@ namespace {
 
     // Direction offsets in bit index space for NW,N,NE,W,E,SW,S,SE
     const int8_t DIRECTIONS[8] = {
-        -9, -8, -7,
-        -1, /* O */ 1,
-         7,  8,  9
+        -9,   -8,   -7,
+        -1, /* O */  1,
+         7,    8,     9
     };
 
     /**
@@ -215,9 +226,8 @@ void initModel(GameModel& model) {
     model.board.white = 0ULL;
     model.aiThinking = false;
     model.aiMove = MOVE_NONE;
-    model.showPassMessage = false;
-    model.passedPlayer = PLAYER_BLACK;
-    model.passMessageStartTime = 0.0;
+	model.pauseTimers = false;
+    model.playedPass = false;
 }
 
 void startModel(GameModel& model) {
@@ -251,7 +261,7 @@ double getTimer(const GameModel& model, PlayerColor_t player) {
     // Compute accumulated time plus current turn if applicable.
     double accumulatedTime = model.playerTime[player];
 
-    if (model.showPassMessage) {
+    if (model.pauseTimers) {
         // Do not count time during pass-message display
         return accumulatedTime;
     }
@@ -369,9 +379,8 @@ bool playMove(GameModel& model, Move_t move) {
         }
 
         // Otherwise signal a pass and record time
-        model.showPassMessage = true;
-        model.passedPlayer = playerWhoPassed;
-        model.passMessageStartTime = GetTime();
+		model.pauseTimers = true;
+		model.playedPass = true;
     }
 
     return true;

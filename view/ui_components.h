@@ -25,7 +25,14 @@ void drawScore(std::string label, Vector2 position, int score);
 void drawTimer(Vector2 position, double time);
 
 // Button components
-void drawButton(Vector2 position, std::string label, Color backgroundColor);
+void drawButton(Vector2 position, const std::string& label, Color backgroundColor);
+void drawColoredButton(Vector2 position, const std::string& label, Color backgroundColor, Color textColor);
+void drawButtonWithFont(Vector2 position, const std::string& label, Color backgroundColor, Color textColor, int fontSize);
 bool isMousePointerOverButton(Vector2 position);
+
+// Slider component
+void drawSlider(Vector2 position, float width, int minValue, int maxValue, int currentValue, const std::string& label);
+bool isMousePointerOverSlider(Vector2 position, float width);
+int getSliderValue(Vector2 mousePos, Vector2 sliderPos, float width, int minValue, int maxValue);
 
 #endif // UI_COMPONENTS_H

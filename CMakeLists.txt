@@ -27,6 +27,7 @@ add_executable(main
     view/board_renderer.cpp
     view/game_overlay.cpp
     view/menu_system.cpp
+    view/settings_overlay.cpp
 
     ai/ai_factory.cpp
     ai/ai_easy.cpp

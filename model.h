@@ -1,3 +1,15 @@
+/**
+ * @brief Implements the Reversi game model
+ * @author Marc S. Ressl
+ * @modified:
+ *			Agustin Valenzuela,
+ *			Alex Petersen,
+ *			Dylan Frigerio,
+ *			Enzo Fernadez Rosas
+ *
+ * @copyright Copyright (c) 2023-2024
+ */
+
 #ifndef MODEL_H
 #define MODEL_H
 
@@ -79,10 +91,8 @@ struct GameModel {
     bool aiThinking;
     Move_t aiMove;
 
-    // Turn-pass notification
-    bool showPassMessage;
-    PlayerColor_t passedPlayer;
-    double passMessageStartTime;
+	bool playedPass;
+    bool pauseTimers;
 };
 
 // ---------------------------------------------------------------------------

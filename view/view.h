@@ -14,20 +14,42 @@
 #define VIEW_H
 
 #include "../model.h"
+#include <string>
 
- // Main view functions
+// Main view functions
 void initView();
 void freeView();
-void drawView(GameModel& model);
+void drawView(GameModel& model, bool showSettings = false,
+    const std::string& aiDifficulty = "Normal", int nodeLimit = 500000, bool aiActivate = true);
 Move_t getMoveOnMousePointer();
 
-// Menu functions
+// Main menu functions
 void drawMainMenu();
-bool isMousePointerOverPlayBlackButton();
-bool isMousePointerOverPlayWhiteButton();
+bool isMousePointerOverMenu1v1Button();
+bool isMousePointerOverMenu1vAIButton();
+bool isMousePointerOverMenuSettingsButton();
+
+// AI Settings menu functions
+void drawAIDifficultyMenu();
 bool isMousePointerOverAIEasyButton();
 bool isMousePointerOverAINormalButton();
 bool isMousePointerOverAIHardButton();
 bool isMousePointerOverAIExtremeButton();
+bool isMousePointerOverBackToMenuButton();
+bool isMousePointerOverContinueToMenuButton();
+
+// Game over screen functions
+bool isMousePointerOverPlayBlackButton();
+bool isMousePointerOverPlayWhiteButton();
+
+// In-game settings overlay functions
+void drawSettingsButton();
+void drawSettingsOverlay(const std::string& aiDifficulty, int nodeLimit);
+bool isMousePointerOverSettingsButton();
+bool isMousePointerOverDifficultyButton();
+bool isMousePointerOverNodeLimitMinusButton();
+bool isMousePointerOverNodeLimitPlusButton();
+bool isMousePointerOverMainMenuButton();
+bool isMousePointerOverCloseSettingsButton();
 
 #endif // VIEW_H

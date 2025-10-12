@@ -20,13 +20,14 @@
   * @param model Game model containing pass message state
   */
 void drawPassMessage(const GameModel& model) {
-    if (!model.showPassMessage) {
+    if (!model.playedPass) {
         return;
     }
 
-    std::string passMessage = (model.passedPlayer == PLAYER_BLACK) ? "BLACK PASSES TURN" : "WHITE PASSES TURN";
-    Color messageColor = (model.passedPlayer == PLAYER_BLACK) ? BLACK : WHITE;
-    Color bgColor = (model.passedPlayer == PLAYER_BLACK) ? WHITE : BLACK;
+    PlayerColor_t passer = model.currentPlayer;
+    std::string passMessage = (passer == PLAYER_BLACK) ? "BLACK PASSES TURN" : "WHITE PASSES TURN";
+    Color messageColor = (passer == PLAYER_BLACK) ? BLACK : WHITE;
+    Color bgColor = (passer == PLAYER_BLACK) ? WHITE : BLACK;
 
     // Semi-transparent background
     DrawRectangle(BOARD_X, BOARD_Y + BOARD_CONTENT_SIZE / 2 - 50,
