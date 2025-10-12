@@ -14,7 +14,7 @@
 int main()
 {
 	GameModel model;
-	initializeAI(AI_HARD);
+	initializeAI(AI_NORMAL);
 
 	initModel(model);
 	initView();

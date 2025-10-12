@@ -65,7 +65,7 @@ void drawBoardPieces(const GameModel& model) {
  * @param model Game model containing valid moves and board state
  */
 void drawValidMoves(const GameModel& model) {
-    if (model.gameOver || model.showPassMessage) {
+    if (model.gameOver || model.playedPass) {
         return;
     }
 

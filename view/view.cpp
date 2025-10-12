@@ -16,6 +16,7 @@
 #include "board_renderer.h"
 #include "game_overlay.h"
 #include "menu_system.h"
+#include "settings_overlay.h"
 #include "raylib.h"
 
  /**
@@ -36,10 +37,14 @@ void freeView() {
 /**
  * @brief Main view rendering function - coordinates all rendering components
  * @param model Current game model containing board state and game information
+ * @param showSettings Whether to show the settings overlay
+ * @param aiDifficulty Current AI difficulty setting
+ * @param nodeLimit Current node limit for AI
  */
-void drawView(GameModel& model) {
+void drawView(GameModel& model, bool showSettings, const std::string& aiDifficulty, int nodeLimit, bool aiActivate) {
     BeginDrawing();
     ClearBackground(BEIGE);
+
 
     // Render board components
     drawBoard();
@@ -50,12 +55,39 @@ void drawView(GameModel& model) {
     drawScore("Black score: ", { INFO_CENTERED_X, INFO_WHITE_SCORE_Y }, getScore(model, PLAYER_BLACK));
     drawTimer({ INFO_CENTERED_X, INFO_WHITE_TIME_Y }, getTimer(model, PLAYER_BLACK));
     drawCenteredText({ INFO_CENTERED_X, INFO_TITLE_Y }, TITLE_FONT_SIZE, GAME_NAME);
+    
     drawScore("White score: ", { INFO_CENTERED_X, INFO_BLACK_SCORE_Y }, getScore(model, PLAYER_WHITE));
     drawTimer({ INFO_CENTERED_X, INFO_BLACK_TIME_Y }, getTimer(model, PLAYER_WHITE));
+
+    // Draw settings button
+    drawSettingsButton();
 
     // Render overlays
     drawPassMessage(model);
     drawGameOverScreen(model);
+
+    if (aiActivate)
+    {
+        Color aiColorDifficulty = LIGHTGRAY;
+        if (aiDifficulty == "Easy") {
+            aiColorDifficulty = GREEN;
+        }
+        else if (aiDifficulty == "Normal") {
+            aiColorDifficulty = YELLOW;
+        }
+        else if (aiDifficulty == "Hard") {
+            aiColorDifficulty = RED;
+        }
+        else if (aiDifficulty == "Extreme") {
+            aiColorDifficulty = DARKPURPLE;
+        }
+        drawCenteredColoredText({ INFO_CENTERED_X, INFO_TITLE_Y + TITLE_FONT_SIZE * 0.8 }, SUBTITLE_FONT_SIZE, aiDifficulty, aiColorDifficulty);
+    }
+
+    // Settings overlay (drawn last to be on top)
+    if (showSettings) {
+        drawSettingsOverlay(aiDifficulty, nodeLimit);
+    }
 
     EndDrawing();
 }

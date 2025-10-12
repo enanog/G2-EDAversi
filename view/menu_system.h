@@ -15,14 +15,23 @@
 
  // Menu rendering
 void drawMainMenu();
-void drawAIDifficultyButtons();
+void drawAIDifficultyMenu();
 
-// Button handlers
+// Main menu button handlers
+bool isMousePointerOverMenu1v1Button();
+bool isMousePointerOverMenu1vAIButton();
+bool isMousePointerOverMenuSettingsButton();
+
+// Game over screen button handlers
 bool isMousePointerOverPlayBlackButton();
 bool isMousePointerOverPlayWhiteButton();
+
+// AI difficulty selection handlers
 bool isMousePointerOverAIEasyButton();
 bool isMousePointerOverAINormalButton();
 bool isMousePointerOverAIHardButton();
 bool isMousePointerOverAIExtremeButton();
+bool isMousePointerOverBackToMenuButton();
+bool isMousePointerOverContinueToMenuButton();
 
 #endif // MENU_SYSTEM_H
