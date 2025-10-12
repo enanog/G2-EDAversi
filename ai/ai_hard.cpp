@@ -27,8 +27,8 @@ const int AIHard::POSITION_WEIGHTS[64] = {
     500,  -150, 30, 10, 10, 30, -150, 500
 };
 
-AIHard::AIHard() : nodesExplored(0) {
-    std::cout << "[AIHard] Initialized" << std::endl;
+AIHard::AIHard() : nodesExplored(0), maxNodes(DEFAULT_NODE_LIMIT) {
+    std::cout << "[AIHard] Initialized with node limit: " << maxNodes << std::endl;
 }
 
 GameModel AIHard::copyModel(const GameModel& model) const {
@@ -90,8 +90,13 @@ int AIHard::alphaBeta(GameModel& model, int depth, int alpha, int beta,
     bool isMaximizing, PlayerColor_t maximizingPlayer) const {
     nodesExplored++;
 
+    // Check node limit (nuevo)
+    if (nodesExplored >= maxNodes) {
+        return evaluateBoard(model, maximizingPlayer);
+    }
+
     // Search termination conditions
-    if (depth == 0 || model.gameOver || nodesExplored >= MAX_NODES) {
+    if (depth == 0 || model.gameOver) {
         return evaluateBoard(model, maximizingPlayer);
     }
 
@@ -124,6 +129,8 @@ int AIHard::alphaBeta(GameModel& model, int depth, int alpha, int beta,
         int maxEval = std::numeric_limits<int>::min();
 
         for (Move_t move : validMoves) {
+            if (nodesExplored >= maxNodes) break;  // Early exit
+
             GameModel nextModel = copyModel(model);
             playMove(nextModel, move);
 
@@ -143,6 +150,8 @@ int AIHard::alphaBeta(GameModel& model, int depth, int alpha, int beta,
         int minEval = std::numeric_limits<int>::max();
 
         for (Move_t move : validMoves) {
+            if (nodesExplored >= maxNodes) break;  // Early exit
+
             GameModel nextModel = copyModel(model);
             playMove(nextModel, move);
 
@@ -187,10 +196,16 @@ Move_t AIHard::getBestMove(GameModel& model) {
     Move_t bestMove = validMoves[0];
     int bestScore = std::numeric_limits<int>::min();
 
-    std::cout << "[AIHard] Searching depth " << searchDepth << "..." << std::endl;
+    std::cout << "[AIHard] Searching depth " << searchDepth
+        << " (node limit: " << maxNodes << ")..." << std::endl;
 
     // Evaluate each move with alpha-beta search
     for (Move_t move : validMoves) {
+        if (nodesExplored >= maxNodes) {
+            std::cout << "[AIHard] Node limit reached, stopping early" << std::endl;
+            break;
+        }
+
         GameModel nextModel = copyModel(model);
         playMove(nextModel, move);
 
