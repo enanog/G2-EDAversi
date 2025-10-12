@@ -59,6 +59,25 @@ public:
     }
 
     /**
+     * @brief Sets maximum number of nodes to search
+     * @param limit Maximum nodes (0 = unlimited for compatible AIs)
+     *
+     * Default implementation does nothing - subclasses that support
+     * node limiting should override this method
+     */
+    virtual void setNodeLimit(int limit) {
+        // Default: no-op for AIs that don't use node limits (e.g., Easy AI)
+    }
+
+    /**
+     * @brief Gets current node limit
+     * @return Current maximum nodes, or 0 if unlimited
+     */
+    virtual int getNodeLimit() const {
+        return 0;  // Default: unlimited
+    }
+
+    /**
      * @brief Resets internal AI state if needed
      */
     virtual void reset() {}

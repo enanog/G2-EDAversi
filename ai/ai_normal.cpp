@@ -15,8 +15,8 @@
 #include <limits>
 #include <iostream>
 
-AINormal::AINormal() : nodesExplored(0) {
-    std::cout << "[AINormal] Initialized" << std::endl;
+AINormal::AINormal() : nodesExplored(0), maxNodes(DEFAULT_NODE_LIMIT) {
+    std::cout << "[AINormal] Initialized with node limit: " << maxNodes << std::endl;
 }
 
 GameModel AINormal::copyModel(const GameModel& model) const {
@@ -42,6 +42,11 @@ int AINormal::evaluateBoard(const GameModel& model, PlayerColor_t maximizingPlay
 
 int AINormal::minimax(GameModel& model, int depth, bool isMaximizing, PlayerColor_t maximizingPlayer) const {
     nodesExplored++;
+
+    // Check node limit (nuevo)
+    if (nodesExplored >= maxNodes) {
+        return evaluateBoard(model, maximizingPlayer);
+    }
 
     if (depth == 0 || model.gameOver) {
         return evaluateBoard(model, maximizingPlayer);
@@ -69,6 +74,8 @@ int AINormal::minimax(GameModel& model, int depth, bool isMaximizing, PlayerColo
         int maxEval = std::numeric_limits<int>::min();
 
         for (Move_t move : validMoves) {
+            if (nodesExplored >= maxNodes) break;  // Early exit
+
             GameModel nextModel = copyModel(model);
             playMove(nextModel, move);
 
@@ -82,6 +89,8 @@ int AINormal::minimax(GameModel& model, int depth, bool isMaximizing, PlayerColo
         int minEval = std::numeric_limits<int>::max();
 
         for (Move_t move : validMoves) {
+            if (nodesExplored >= maxNodes) break;  // Early exit
+
             GameModel nextModel = copyModel(model);
             playMove(nextModel, move);
 
@@ -108,9 +117,15 @@ Move_t AINormal::getBestMove(GameModel& model) {
     int bestScore = std::numeric_limits<int>::min();
 
     std::cout << "[AINormal] Evaluating " << validMoves.size()
-        << " moves at depth " << MAX_DEPTH << "..." << std::endl;
+        << " moves at depth " << MAX_DEPTH
+        << " (node limit: " << maxNodes << ")..." << std::endl;
 
     for (Move_t move : validMoves) {
+        if (nodesExplored >= maxNodes) {
+            std::cout << "[AINormal] Node limit reached, stopping early" << std::endl;
+            break;
+        }
+
         GameModel nextModel = copyModel(model);
         playMove(nextModel, move);
 
