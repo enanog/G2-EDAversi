@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <limits>
 
@@ -349,7 +350,7 @@ int AIExtreme::SearchEngine::negamax(
     }
 
     if ((nodesSearched & 0x3FF) == 0) {
-        if (isTimeUp()){
+        if (isTimeUp()) {
             return evaluator.evaluate(board, player);
         }
     }
@@ -393,7 +394,6 @@ int AIExtreme::SearchEngine::negamax(
     int bound = BOUND_UPPER;
 
     for (Move_t move : moves) {
-
         if (nodesSearched >= MAX_NODES)
             break;
 
@@ -476,20 +476,27 @@ int AIExtreme::SearchEngine::scoreMoveForOrdering(Move_t move,
 // AIExtreme Main Implementation
 // ============================================================================
 
+#define BOOK_LIMIT_YEAR 1977
+
 AIExtreme::AIExtreme() : moveCount(0) {
     engine = std::make_unique<SearchEngine>();
     book = std::make_unique<OpeningBook>(&engine->tt);  // Share TT with book
+    int gamesLoaded;
+    std::string bookPath;
 
-    // Load opening book from local directory
-    std::string bookPath = "../WTH_2024.wtb";  // Same directory as executable
+    bookPath.reserve(48);
 
-    std::cout << "Loading opening book from: " << bookPath << std::endl;
-    int gamesLoaded = book->loadFile(bookPath);
+    for (uint16_t year = 2024; year >= BOOK_LIMIT_YEAR && gamesLoaded != 0; year--) {
+        std::format_to(std::back_inserter(bookPath), "../databases/WTH_{}.wtb", year);
+        std::cout << "Loading opening book from: " << bookPath << std::endl;
+        gamesLoaded = book->loadFile(bookPath);
 
-    if (gamesLoaded == 0) {
-        std::cerr << "Warning: Opening book not loaded. AI will use search for all moves."
-                  << std::endl;
-        std::cerr << "Expected file: " << bookPath << std::endl;
+        if (gamesLoaded == 0) {
+            std::cerr << "Warning: Opening book not loaded. AI will use search for all moves."
+                      << std::endl;
+            std::cerr << "Expected file: " << bookPath << std::endl;
+        }
+        bookPath.clear();
     }
 }
 
@@ -507,12 +514,20 @@ int AIExtreme::loadOpeningBook(const std::string& path) {
 Move_t AIExtreme::getBestMove(GameModel& model) {
     // Reset move counter if it's the start of a new game (4 pieces on board)
     int totalPieces = getDiscCount(model.board);
-    if (totalPieces == 4) {
+
+    // Detect new game: if very few pieces on board, it's early game
+    if (totalPieces <= 6) {
+        // This is early game - reset counter
+        if (moveCount != 0) {
+            std::cout << "[DEBUG] Early game detected (pieces=" << totalPieces
+                      << ", old moveCount=" << moveCount << "), resetting to 0" << std::endl;
+        }
         moveCount = 0;
     }
 
     Board_t board = model.board;
     PlayerColor_t player = model.currentPlayer;
+
 
     std::vector<Move_t> validMoves;
     getValidMovesAI(board, player, validMoves);
@@ -527,21 +542,10 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
         return validMoves[0];
     }
 
-    #ifdef DEBUGGING
-    // DEBUG: Print current position hash (only for first move)
-    if (moveCount == 0) {
-        uint64_t currentHash = engine->tt.computeHash(board, player);
-        std::cout << "[DEBUG] Current position hash in game: " << std::hex << currentHash
-                  << std::dec << std::endl;
-        std::cout << "[DEBUG] Black bits: " << board.black << ", White bits: " << board.white
-                  << std::endl;
-        std::cout << "[DEBUG] Current player: " << (player == PLAYER_BLACK ? "BLACK" : "WHITE")
-                  << std::endl;
-    }
-    #endif
-
     // Try opening book first
+    std::cout << "[DEBUG] Probing book with moveCount=" << moveCount << std::endl;
     Move_t bookMove = book->probe(board, player, moveCount);
+    // Move_t bookMove = book->probe(board, player, moveCount);
     if (bookMove != MOVE_NONE) {
         // Verify book move is legal
         auto it = std::find(validMoves.begin(), validMoves.end(), bookMove);
