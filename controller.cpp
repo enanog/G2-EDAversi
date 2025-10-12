@@ -376,7 +376,6 @@ void handleSettingsOverlay(GameModel& model) {
         settingsPendingSelection = static_cast<int>(currentDifficulty);
     }
 
-    // Inicializar límite de nodos pendiente al abrir overlay
     if (pendingNodeLimit == -1) {
         pendingNodeLimit = currentNodeLimit;
     }
@@ -384,7 +383,7 @@ void handleSettingsOverlay(GameModel& model) {
     // --- Mouse click handling ---
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         // Cycle visual selection
-        if (isMousePointerOverDifficultyButton()) {
+        if (isMousePointerOverAIDifficultyButton()) {
             switch (settingsPendingSelection) {
             case (int)AIDifficulty::AI_EASY:    settingsPendingSelection = (int)AIDifficulty::AI_NORMAL; break;
             case (int)AIDifficulty::AI_NORMAL:  settingsPendingSelection = (int)AIDifficulty::AI_HARD;   break;
@@ -394,8 +393,7 @@ void handleSettingsOverlay(GameModel& model) {
             }
         }
         // Confirm selection: apply immediately if safe, otherwise schedule
-        else if (isMousePointerOverConfirmSettingsButton()) {
-            // --- Aplicar cambio de dificultad ---
+        else if (isMousePointerOverConfirmAISettingsButton()) {
             if (settingsPendingSelection != -1) {
                 AIDifficulty desired = static_cast<AIDifficulty>(settingsPendingSelection);
                 if (aiThreadRunning) {
@@ -409,7 +407,6 @@ void handleSettingsOverlay(GameModel& model) {
                 }
             }
 
-            // --- Aplicar cambio de límite de nodos ---
             if (pendingNodeLimit != -1 && pendingNodeLimit != currentNodeLimit) {
                 currentNodeLimit = pendingNodeLimit;
 
@@ -428,8 +425,9 @@ void handleSettingsOverlay(GameModel& model) {
             settingsPendingSelection = -1;
             pendingNodeLimit = -1;
         }
+
         // Back to main menu from overlay
-        else if (isMousePointerOverMainMenuButton()) {
+        else if (isMousePointerOverAIMainMenuButton() || isMousePointerOverMainMenuButton()) {
             std::cout << "[Settings] Returning to main menu\n";
             showSettingsOverlay = false;
             cancelAIIfRunning(model);
@@ -439,7 +437,7 @@ void handleSettingsOverlay(GameModel& model) {
             pendingNodeLimit = -1;
         }
         // Close overlay without applying (CANCELAR)
-        else if (isMousePointerOverCloseSettingsButton()) {
+        else if (isMousePointerOverCloseAISettingsButton() || isMousePointerOverCloseSettingsButton()) {
             std::cout << "[Settings] Closing settings (changes discarded)\n";
             showSettingsOverlay = false;
             settingsPendingSelection = -1;
@@ -448,16 +446,14 @@ void handleSettingsOverlay(GameModel& model) {
     }
 
     // --- Slider dragging handling ---
-    // Solo actualiza el valor TEMPORAL (pendingNodeLimit)
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && isMousePointerOverNodeLimitSlider()) {
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && isMousePointerOverAINodeLimitSlider()) {
         Vector2 mousePos = GetMousePosition();
         Vector2 sliderPos = { SETTINGS_OVERLAY_X + SETTINGS_OVERLAY_WIDTH / 2.0f,
-                              SETTINGS_NODE_LIMIT_Y };
+                              AI_SETTINGS_NODE_LIMIT_Y };
 
         int newNodeLimit = getSliderValue(mousePos, sliderPos, SLIDER_WIDTH,
             NODE_LIMIT_MIN, NODE_LIMIT_MAX);
 
-        // Solo actualizar valor temporal, NO aplicar
         if (newNodeLimit != pendingNodeLimit) {
             pendingNodeLimit = newNodeLimit;
         }
@@ -468,8 +464,6 @@ void handleSettingsOverlay(GameModel& model) {
         applyScheduledDifficultyIfAny();
     }
 
-    // Si el AI terminó de pensar y hay un cambio de límite pendiente de aplicar
-    // (fue confirmado pero el AI estaba pensando), aplicarlo ahora
     if (!aiThreadRunning && currentAI && currentNodeLimit != currentAI->getNodeLimit()) {
         applyNodeLimitToCurrentAI();
         std::cout << "[Settings] Applying pending node limit after search completed" << std::endl;

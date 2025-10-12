@@ -86,8 +86,12 @@ void drawView(GameModel& model, bool showSettings, const std::string& aiDifficul
     }
 
     // Settings overlay (drawn last to be on top)
-    if (showSettings) {
-        drawSettingsOverlay(aiDifficulty, nodeLimit);
+    if (showSettings && aiActivate) {
+        drawAISettingsOverlay(aiDifficulty, nodeLimit);
+    }
+    else if(showSettings)
+    {
+        drawSettingsOverlay();
     }
 
     EndDrawing();

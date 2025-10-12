@@ -17,14 +17,17 @@
 
  // Settings overlay rendering
 void drawSettingsButton();
-void drawSettingsOverlay(const std::string& aiDifficulty, int nodeLimit);
+void drawAISettingsOverlay(const std::string& aiDifficulty, int nodeLimit);
+void drawSettingsOverlay();
 
 // Settings button handlers
 bool isMousePointerOverSettingsButton();
-bool isMousePointerOverDifficultyButton();
-bool isMousePointerOverNodeLimitSlider();
-bool isMousePointerOverMainMenuButton();
+bool isMousePointerOverAIDifficultyButton();
+bool isMousePointerOverAINodeLimitSlider();
+bool isMousePointerOverAIMainMenuButton();
+bool isMousePointerOverCloseAISettingsButton();
+bool isMousePointerOverConfirmAISettingsButton();
 bool isMousePointerOverCloseSettingsButton();
-bool isMousePointerOverConfirmSettingsButton();
+bool isMousePointerOverMainMenuButton();
 
 #endif // SETTINGS_OVERLAY_H
