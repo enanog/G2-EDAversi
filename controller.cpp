@@ -124,6 +124,21 @@ void startAIThinking(GameModel& model) {
     std::cout << "[Main] AI thread launched!" << std::endl;
 }
 
+static void cancelAIIfRunning(GameModel& model) {
+    if (aiThreadRunning) {
+        std::cout << "[Controller] Cancelling AI move..." << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(aiMutex);
+            model.aiThinking = false;
+            model.aiMove = MOVE_NONE;
+        }
+        aiThreadRunning = false;
+        if (aiThread.joinable()) {
+            aiThread.join();
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Apply scheduled difficulty (if any) when safe
 // ---------------------------------------------------------------------------
@@ -366,6 +381,7 @@ void handleSettingsOverlay(GameModel& model) {
         else if (isMousePointerOverMainMenuButton()) {
             std::cout << "[Settings] Returning to main menu\n";
             showSettingsOverlay = false;
+            cancelAIIfRunning(model);
             currentState = STATE_MAIN_MENU;
             initModel(model);
             settingsPendingSelection = -1;
@@ -402,6 +418,7 @@ void handleSettingsOverlay(GameModel& model) {
  */
 void handleGameplay(GameModel& model) {
     static double passMessageStartTime = 0;
+
     if (model.playedPass && !passMessageStartTime)
         passMessageStartTime = GetTime();
     else if (model.playedPass && passMessageStartTime) {
@@ -417,6 +434,10 @@ void handleGameplay(GameModel& model) {
         return;
     }
 
+    if (aiEnabled && model.currentPlayer != model.humanPlayer) {
+        checkAndApplyAIMove(model);
+    }
+
     // Handle settings button
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         if (isMousePointerOverSettingsButton() && !showSettingsOverlay) {
@@ -428,14 +449,8 @@ void handleGameplay(GameModel& model) {
         }
     }
 
-    // Handle settings overlay if open
-    if (showSettingsOverlay) {
-        handleSettingsOverlay(model);
-        return;
-    }
-
     // Game over screen
-    if (model.gameOver) {
+    if (model.gameOver && !showSettingsOverlay) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             if (isMousePointerOverPlayBlackButton()) {
                 std::cout << "[Main] Starting new game - Human plays BLACK" << std::endl;
@@ -452,7 +467,7 @@ void handleGameplay(GameModel& model) {
     }
 
     // 1v1 mode (no AI)
-    if (!aiEnabled) {
+    if (!aiEnabled && !showSettingsOverlay) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             Move_t move = getMoveOnMousePointer();
 
@@ -473,7 +488,7 @@ void handleGameplay(GameModel& model) {
     }
 
     // 1 vs AI mode
-    if (model.currentPlayer == model.humanPlayer) {
+    if (model.currentPlayer == model.humanPlayer && !showSettingsOverlay) {
         // Human player's turn
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             Move_t move = getMoveOnMousePointer();
@@ -490,7 +505,7 @@ void handleGameplay(GameModel& model) {
             }
         }
     }
-    else {
+    else if(!showSettingsOverlay){
         // AI player's turn
         if (checkAndApplyAIMove(model)) {
             std::cout << "[Main] AI move processed, next player: "
@@ -557,13 +572,14 @@ bool updateView(GameModel& model) {
         case STATE_PLAYING:
         {
             handleGameplay(model);
-            std::string displayedDifficulty;
-            if (showSettingsOverlay && settingsPendingSelection != -1) {
-                displayedDifficulty = getDifficultyString(static_cast<AIDifficulty>(settingsPendingSelection));
+
+            if (showSettingsOverlay) {
+                handleSettingsOverlay(model);
             }
-            else {
-                displayedDifficulty = getDifficultyString(currentDifficulty);
-            }
+
+            std::string displayedDifficulty = (showSettingsOverlay && settingsPendingSelection != -1)
+                ? getDifficultyString(static_cast<AIDifficulty>(settingsPendingSelection))
+                : getDifficultyString(currentDifficulty);
 
             drawView(model, showSettingsOverlay, displayedDifficulty, currentNodeLimit, aiEnabled);
             break;
