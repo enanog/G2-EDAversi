@@ -527,6 +527,19 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
         return validMoves[0];
     }
 
+    #ifdef DEBUGGING
+    // DEBUG: Print current position hash (only for first move)
+    if (moveCount == 0) {
+        uint64_t currentHash = engine->tt.computeHash(board, player);
+        std::cout << "[DEBUG] Current position hash in game: " << std::hex << currentHash
+                  << std::dec << std::endl;
+        std::cout << "[DEBUG] Black bits: " << board.black << ", White bits: " << board.white
+                  << std::endl;
+        std::cout << "[DEBUG] Current player: " << (player == PLAYER_BLACK ? "BLACK" : "WHITE")
+                  << std::endl;
+    }
+    #endif
+
     // Try opening book first
     Move_t bookMove = book->probe(board, player, moveCount);
     if (bookMove != MOVE_NONE) {
@@ -539,6 +552,39 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
             moveCount++;
             return bookMove;
         }
+    }
+
+    // ONE-TIME TEST: Verify make/unmake works correctly
+    static bool testedMakeUnmake = false;
+    if (!testedMakeUnmake && !validMoves.empty()) {
+        Board_t testBoard = board;
+        PlayerColor_t testPlayer = player;
+        Move_t testMove = validMoves[0];
+
+        // Save original state
+        uint64_t origBlack = testBoard.black;
+        uint64_t origWhite = testBoard.white;
+        PlayerColor_t origPlayer = testPlayer;
+
+        // Make and unmake move
+        BoardState_t state = makeMove(testBoard, testPlayer, testMove);
+        unmakeMove(testBoard, testPlayer, state);
+
+        // Verify restoration
+        if (testBoard.black != origBlack || testBoard.white != origWhite ||
+            testPlayer != origPlayer) {
+            std::cerr << "\n=== CRITICAL ERROR: make/unmake is BROKEN! ===" << std::endl;
+            std::cerr << "Original: black=" << origBlack << " white=" << origWhite
+                      << " player=" << (int)origPlayer << std::endl;
+            std::cerr << "After:    black=" << testBoard.black << " white=" << testBoard.white
+                      << " player=" << (int)testPlayer << std::endl;
+            std::cerr << "Move tested: " << (int)testMove << std::endl;
+            std::cerr << "================================================\n" << std::endl;
+        } else {
+            std::cout << "[TEST] make/unmake verified OK ✓" << std::endl;
+        }
+
+        testedMakeUnmake = true;
     }
 
     // Not in book - use search

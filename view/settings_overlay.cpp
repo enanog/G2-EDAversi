@@ -15,6 +15,7 @@
 #include "ui_components.h"
 #include "raylib.h"
 #include <string>
+#include <cmath>
 
  /**
   * @brief Draws settings gear icon button (in-game)

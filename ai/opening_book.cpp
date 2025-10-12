@@ -84,6 +84,17 @@ void OpeningBook::addGame(const std::vector<Move_t>& moves, int blackScore) {
 
     PlayerColor_t player = PLAYER_BLACK;
 
+    // DEBUG: Print initial position hash (only for first game)
+    static bool debugPrinted = false;
+    if (!debugPrinted && !moves.empty()) {
+        uint64_t initialHash = tt->computeHash(board, player);
+        std::cout << "[DEBUG] Initial position hash in book: " << std::hex << initialHash
+                  << std::dec << std::endl;
+        std::cout << "[DEBUG] Black bits: " << board.black << ", White bits: " << board.white
+                  << std::endl;
+        debugPrinted = true;
+    }
+
     // Add up to BOOK_MAX_DEPTH moves
     int depth = std::min((int)moves.size(), BOOK_MAX_DEPTH);
     maxDepthStored = std::max(maxDepthStored, depth);
