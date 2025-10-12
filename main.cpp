@@ -1,7 +1,11 @@
 /**
  * @brief Reversi game
  * @author Marc S. Ressl
- * @modified: AI modularization refactor
+ * @modifiers:
+ *          Agustin Valenzuela,
+ *          Alex Petersen,
+ *          Dylan Frigerio,
+ *          Enzo Fernandez Rosas
  *
  * @copyright Copyright (c) 2023-2024
  */

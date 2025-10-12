@@ -5,7 +5,7 @@
  *          Agustin Valenzuela,
  *          Alex Petersen,
  *          Dylan Frigerio,
- *          Enzo Fernadez Rosas
+ *          Enzo Fernandez Rosas
  *
  * @copyright Copyright (c) 2023-2024
  */
@@ -44,7 +44,7 @@ static bool showSettingsOverlay = false;
 
 // Game configuration
 static AIDifficulty currentDifficulty = AIDifficulty::AI_NORMAL;
-static int currentNodeLimit = 1000;
+static int currentNodeLimit = 500000;
 static bool aiEnabled = false;  // false => 1v1 mode
 
 // UI temporary selection
@@ -52,6 +52,9 @@ static bool aiEnabled = false;  // false => 1v1 mode
 // - scheduledDifficulty: difficulty scheduled to apply once AI finishes thinking (-1 = none)
 static int settingsPendingSelection = -1;
 static int scheduledDifficulty = -1;
+
+// NUEVO: Node limit temporal mientras el overlay está abierto
+static int pendingNodeLimit = -1;  // -1 = no hay cambio pendiente
 
 // ---------------------------------------------------------------------------
 // AI thread worker
@@ -140,6 +143,25 @@ static void cancelAIIfRunning(GameModel& model) {
 }
 
 // ---------------------------------------------------------------------------
+// Apply node limit to current AI
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Aplica el límite de nodos configurado al AI actual
+ */
+void applyNodeLimitToCurrentAI() {
+    if (currentAI) {
+        currentAI->setNodeLimit(currentNodeLimit);
+        std::cout << "[Controller] Node limit applied: " << currentNodeLimit
+            << " to " << currentAI->getName() << std::endl;
+    }
+    else {
+        std::cerr << "[Controller] Warning: Cannot apply node limit, no AI initialized"
+            << std::endl;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Apply scheduled difficulty (if any) when safe
 // ---------------------------------------------------------------------------
 
@@ -221,6 +243,9 @@ void initializeAI(AIDifficulty difficulty) {
 
     if (currentAI) {
         std::cout << "[Controller] AI ready: " << currentAI->getName() << std::endl;
+
+        // Aplicar el límite de nodos al AI recién creado
+        applyNodeLimitToCurrentAI();
     }
     else {
         std::cerr << "[Controller] ERROR: Failed to create AI!" << std::endl;
@@ -242,6 +267,9 @@ void changeAIDifficulty(AIDifficulty difficulty) {
 
     currentDifficulty = difficulty;
     initializeAI(difficulty);
+
+    // Aplicar el límite de nodos al nuevo AI
+    applyNodeLimitToCurrentAI();
 }
 
 const char* getCurrentAIName() {
@@ -337,14 +365,20 @@ void handleAISettingsMenu() {
 /**
  * @brief Handles in-game settings overlay (visual selection + scheduling)
  *
- * Note: Uses file-scoped static 'settingsPendingSelection' and 'scheduledDifficulty'
- * to avoid adding fields to GameModel. Visual selection is shown while overlay open;
- * if user confirms while AI is thinking we schedule the change and apply it once safe.
+ * Note: Uses file-scoped static 'settingsPendingSelection', 'scheduledDifficulty'
+ * y 'pendingNodeLimit' to avoid adding fields to GameModel. Visual selection is
+ * shown while overlay open; if user confirms while AI is thinking we schedule
+ * the change and apply it once safe.
  */
 void handleSettingsOverlay(GameModel& model) {
     // Initialize visual selection when overlay opens
     if (settingsPendingSelection == -1) {
         settingsPendingSelection = static_cast<int>(currentDifficulty);
+    }
+
+    // Inicializar límite de nodos pendiente al abrir overlay
+    if (pendingNodeLimit == -1) {
+        pendingNodeLimit = currentNodeLimit;
     }
 
     // --- Mouse click handling ---
@@ -361,6 +395,7 @@ void handleSettingsOverlay(GameModel& model) {
         }
         // Confirm selection: apply immediately if safe, otherwise schedule
         else if (isMousePointerOverConfirmSettingsButton()) {
+            // --- Aplicar cambio de dificultad ---
             if (settingsPendingSelection != -1) {
                 AIDifficulty desired = static_cast<AIDifficulty>(settingsPendingSelection);
                 if (aiThreadRunning) {
@@ -373,9 +408,25 @@ void handleSettingsOverlay(GameModel& model) {
                     changeAIDifficulty(desired);
                 }
             }
-            // Close overlay and reset visual selection
+
+            // --- Aplicar cambio de límite de nodos ---
+            if (pendingNodeLimit != -1 && pendingNodeLimit != currentNodeLimit) {
+                currentNodeLimit = pendingNodeLimit;
+
+                if (!aiThreadRunning && currentAI) {
+                    applyNodeLimitToCurrentAI();
+                    std::cout << "[Settings] Node limit confirmed: " << currentNodeLimit << std::endl;
+                }
+                else if (aiThreadRunning) {
+                    std::cout << "[Settings] Node limit confirmed: " << currentNodeLimit
+                        << " (will apply after current search)" << std::endl;
+                }
+            }
+
+            // Close overlay and reset visual selections
             showSettingsOverlay = false;
             settingsPendingSelection = -1;
+            pendingNodeLimit = -1;
         }
         // Back to main menu from overlay
         else if (isMousePointerOverMainMenuButton()) {
@@ -385,31 +436,43 @@ void handleSettingsOverlay(GameModel& model) {
             currentState = STATE_MAIN_MENU;
             initModel(model);
             settingsPendingSelection = -1;
+            pendingNodeLimit = -1;
         }
-        // Close overlay without applying
+        // Close overlay without applying (CANCELAR)
         else if (isMousePointerOverCloseSettingsButton()) {
-            std::cout << "[Settings] Closing settings\n";
+            std::cout << "[Settings] Closing settings (changes discarded)\n";
             showSettingsOverlay = false;
             settingsPendingSelection = -1;
+            pendingNodeLimit = -1;
         }
     }
 
-    // --- Slider dragging handling (unchanged) ---
+    // --- Slider dragging handling ---
+    // Solo actualiza el valor TEMPORAL (pendingNodeLimit)
     if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && isMousePointerOverNodeLimitSlider()) {
         Vector2 mousePos = GetMousePosition();
         Vector2 sliderPos = { SETTINGS_OVERLAY_X + SETTINGS_OVERLAY_WIDTH / 2.0f,
                               SETTINGS_NODE_LIMIT_Y };
 
-        currentNodeLimit = getSliderValue(mousePos, sliderPos, SLIDER_WIDTH,
+        int newNodeLimit = getSliderValue(mousePos, sliderPos, SLIDER_WIDTH,
             NODE_LIMIT_MIN, NODE_LIMIT_MAX);
 
-        // TODO: If AI instance supports node limit, apply it to currentAI here.
-        // e.g. if (currentAI) currentAI->setNodeLimit(currentNodeLimit);
+        // Solo actualizar valor temporal, NO aplicar
+        if (newNodeLimit != pendingNodeLimit) {
+            pendingNodeLimit = newNodeLimit;
+        }
     }
 
     // If AI is not thinking and there is a scheduled difficulty, apply it now.
     if (!aiThreadRunning && scheduledDifficulty != -1) {
         applyScheduledDifficultyIfAny();
+    }
+
+    // Si el AI terminó de pensar y hay un cambio de límite pendiente de aplicar
+    // (fue confirmado pero el AI estaba pensando), aplicarlo ahora
+    if (!aiThreadRunning && currentAI && currentNodeLimit != currentAI->getNodeLimit()) {
+        applyNodeLimitToCurrentAI();
+        std::cout << "[Settings] Applying pending node limit after search completed" << std::endl;
     }
 }
 
@@ -445,6 +508,7 @@ void handleGameplay(GameModel& model) {
             showSettingsOverlay = true;
             // initialize visual selection when opening overlay
             settingsPendingSelection = static_cast<int>(currentDifficulty);
+            pendingNodeLimit = currentNodeLimit;  // Inicializar límite pendiente
             return;
         }
     }
@@ -505,7 +569,7 @@ void handleGameplay(GameModel& model) {
             }
         }
     }
-    else if(!showSettingsOverlay){
+    else if (!showSettingsOverlay) {
         // AI player's turn
         if (checkAndApplyAIMove(model)) {
             std::cout << "[Main] AI move processed, next player: "
@@ -561,29 +625,33 @@ bool updateView(GameModel& model) {
 
     // State machine
     switch (currentState) {
-        case STATE_MAIN_MENU:
-            handleMainMenu(model);
-            break;
+    case STATE_MAIN_MENU:
+        handleMainMenu(model);
+        break;
 
-        case STATE_AI_SETTINGS_MENU:
-            handleAISettingsMenu();
-            break;
+    case STATE_AI_SETTINGS_MENU:
+        handleAISettingsMenu();
+        break;
 
-        case STATE_PLAYING:
-        {
-            handleGameplay(model);
+    case STATE_PLAYING:
+    {
+        handleGameplay(model);
 
-            if (showSettingsOverlay) {
-                handleSettingsOverlay(model);
-            }
-
-            std::string displayedDifficulty = (showSettingsOverlay && settingsPendingSelection != -1)
-                ? getDifficultyString(static_cast<AIDifficulty>(settingsPendingSelection))
-                : getDifficultyString(currentDifficulty);
-
-            drawView(model, showSettingsOverlay, displayedDifficulty, currentNodeLimit, aiEnabled);
-            break;
+        if (showSettingsOverlay) {
+            handleSettingsOverlay(model);
         }
+
+        std::string displayedDifficulty = (showSettingsOverlay && settingsPendingSelection != -1)
+            ? getDifficultyString(static_cast<AIDifficulty>(settingsPendingSelection))
+            : getDifficultyString(currentDifficulty);
+
+        int displayNodeLimit = (showSettingsOverlay && pendingNodeLimit != -1)
+            ? pendingNodeLimit
+            : currentNodeLimit;
+
+        drawView(model, showSettingsOverlay, displayedDifficulty, displayNodeLimit, aiEnabled);
+        break;
+    }
     }
     return true;
 }

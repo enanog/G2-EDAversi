@@ -28,6 +28,9 @@ namespace fs = std::filesystem;
 #define ENDGAME_DEPTH 16
 #define ENDGAME_THRESHOLD 12
 
+// Límite de nodos por defecto - ahora configurable en runtime
+static const int DEFAULT_MAX_NODES = 500000;
+
 #define INFINITY_SCORE 1000000
 #define WIN_SCORE 100000
 #define LOSE_SCORE -100000
@@ -51,7 +54,7 @@ namespace fs = std::filesystem;
  * @brief Advanced board evaluation with multiple heuristics
  */
 class AIExtreme::Evaluator {
-  public:
+public:
     static const int pieceSquareTable[64];
 
     int evaluate(const Board_t& board, PlayerColor_t player) {
@@ -150,11 +153,11 @@ class AIExtreme::Evaluator {
         uint64_t adjacentToEmpty = 0;
         adjacentToEmpty |= (empty >> 8) | (empty << 8);  // N, S
         adjacentToEmpty |= ((empty & ~0x0101010101010101ULL) >> 1) |
-                           ((empty & ~0x8080808080808080ULL) << 1);  // W, E
+            ((empty & ~0x8080808080808080ULL) << 1);  // W, E
         adjacentToEmpty |= ((empty & ~0x0101010101010101ULL) >> 9) |
-                           ((empty & ~0x8080808080808080ULL) << 9);  // NW, SE
+            ((empty & ~0x8080808080808080ULL) << 9);  // NW, SE
         adjacentToEmpty |= ((empty & ~0x8080808080808080ULL) >> 7) |
-                           ((empty & ~0x0101010101010101ULL) << 7);  // NE, SW
+            ((empty & ~0x0101010101010101ULL) << 7);  // NE, SW
 
         int myFrontier = countBits(myPieces & adjacentToEmpty);
         int oppFrontier = countBits(oppPieces & adjacentToEmpty);
@@ -172,14 +175,14 @@ const int AIExtreme::Evaluator::pieceSquareTable[64] = {
     100, -20, 10, 5,  5,  10, -20, 100, -20, -50, -2, -2, -2, -2, -50, -20,
     10,  -2,  5,  1,  1,  5,  -2,  10,  5,   -2,  1,  1,  1,  1,  -2,  5,
     5,   -2,  1,  1,  1,  1,  -2,  5,   10,  -2,  5,  1,  1,  5,  -2,  10,
-    -20, -50, -2, -2, -2, -2, -50, -20, 100, -20, 10, 5,  5,  10, -20, 100};
+    -20, -50, -2, -2, -2, -2, -50, -20, 100, -20, 10, 5,  5,  10, -20, 100 };
 
 // ============================================================================
 // SearchEngine Implementation
 // ============================================================================
 
 class AIExtreme::SearchEngine {
-  public:
+public:
     TranspositionTable tt;  // Make public so OpeningBook can share it
 
     SearchEngine();
@@ -192,13 +195,24 @@ class AIExtreme::SearchEngine {
         return maxDepthReached;
     }
 
-  private:
+    // Nuevos métodos para gestión de límite de nodos
+    void setMaxNodes(int limit) {
+        maxNodesLimit = (limit > 0) ? limit : DEFAULT_MAX_NODES;
+    }
+
+    int getMaxNodes() const {
+        return maxNodesLimit;
+    }
+
+private:
     Evaluator evaluator;
 
     int nodesSearched;
     int cutoffs;
     int maxDepthReached;
     Move_t pvMove;
+
+    int maxNodesLimit;  // Límite dinámico de nodos
 
     std::chrono::time_point<std::chrono::high_resolution_clock> searchStartTime;
     double timeLimit;
@@ -213,10 +227,11 @@ class AIExtreme::SearchEngine {
 
 AIExtreme::SearchEngine::SearchEngine()
     : nodesSearched(0),
-      cutoffs(0),
-      maxDepthReached(0),
-      pvMove(MOVE_NONE),
-      timeLimit(TIME_LIMIT_MS / 1000.0) {
+    cutoffs(0),
+    maxDepthReached(0),
+    pvMove(MOVE_NONE),
+    maxNodesLimit(DEFAULT_MAX_NODES),
+    timeLimit(TIME_LIMIT_MS / 1000.0) {
 }
 
 bool AIExtreme::SearchEngine::isTimeUp() {
@@ -226,8 +241,8 @@ bool AIExtreme::SearchEngine::isTimeUp() {
 }
 
 Move_t AIExtreme::SearchEngine::search(Board_t& board,
-                                       PlayerColor_t player,
-                                       double timeLimitSeconds) {
+    PlayerColor_t player,
+    double timeLimitSeconds) {
     searchStartTime = std::chrono::high_resolution_clock::now();
     timeLimit = timeLimitSeconds;
     nodesSearched = 0;
@@ -262,7 +277,7 @@ Move_t AIExtreme::SearchEngine::search(Board_t& board,
     }
 
     std::cout << "Search complete: Depth=" << maxDepthReached << " Nodes=" << nodesSearched
-              << " Cutoffs=" << cutoffs << std::endl;
+        << " Cutoffs=" << cutoffs << " Limit=" << maxNodesLimit << std::endl;
 
     tt.printStats();
 
@@ -295,7 +310,7 @@ Move_t AIExtreme::SearchEngine::rootSearch(
     int bound = BOUND_UPPER;
 
     for (Move_t move : moves) {
-        if (isTimeUp() || nodesSearched >= MAX_NODES)
+        if (isTimeUp() || nodesSearched >= maxNodesLimit)  // Usar límite dinámico
             break;
 
         PlayerColor_t nextPlayer = player;
@@ -348,8 +363,9 @@ int AIExtreme::SearchEngine::negamax(
         return score;
     }
 
+    // Verificar límite de nodos cada cierto número de nodos
     if ((nodesSearched & 0x3FF) == 0) {
-        if (isTimeUp()){
+        if (isTimeUp() || nodesSearched >= maxNodesLimit) {  // Usar límite dinámico
             return evaluator.evaluate(board, player);
         }
     }
@@ -394,7 +410,7 @@ int AIExtreme::SearchEngine::negamax(
 
     for (Move_t move : moves) {
 
-        if (nodesSearched >= MAX_NODES)
+        if (nodesSearched >= maxNodesLimit)  // Usar límite dinámico
             break;
 
         PlayerColor_t nextPlayer = player;
@@ -433,8 +449,8 @@ int AIExtreme::SearchEngine::negamax(
 }
 
 void AIExtreme::SearchEngine::orderMoves(MoveList& moves,
-                                         const Board_t& board,
-                                         PlayerColor_t player) {
+    const Board_t& board,
+    PlayerColor_t player) {
     std::sort(moves.begin(), moves.end(), [this, &board, player](Move_t a, Move_t b) {
         if (a == pvMove)
             return true;
@@ -442,19 +458,21 @@ void AIExtreme::SearchEngine::orderMoves(MoveList& moves,
             return false;
 
         return scoreMoveForOrdering(a, board, player) > scoreMoveForOrdering(b, board, player);
-    });
+        });
 }
 
 int AIExtreme::SearchEngine::scoreMoveForOrdering(Move_t move,
-                                                  const Board_t& board,
-                                                  PlayerColor_t player) {
+    const Board_t& board,
+    PlayerColor_t player) {
     int score = 0;
 
     if ((1ULL << move) & CORNERS) {
         score += 10000;
-    } else if ((1ULL << move) & X_SQUARES) {
+    }
+    else if ((1ULL << move) & X_SQUARES) {
         score -= 5000;
-    } else if ((1ULL << move) & EDGES) {
+    }
+    else if ((1ULL << move) & EDGES) {
         score += 100;
     }
 
@@ -488,7 +506,7 @@ AIExtreme::AIExtreme() : moveCount(0) {
 
     if (gamesLoaded == 0) {
         std::cerr << "Warning: Opening book not loaded. AI will use search for all moves."
-                  << std::endl;
+            << std::endl;
         std::cerr << "Expected file: " << bookPath << std::endl;
     }
 }
@@ -499,7 +517,8 @@ int AIExtreme::loadOpeningBook(const std::string& path) {
     // Check if path is a file or directory
     if (fs::is_directory(path)) {
         return book->load(path);
-    } else {
+    }
+    else {
         return book->loadFile(path);
     }
 }
@@ -547,8 +566,8 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
         auto it = std::find(validMoves.begin(), validMoves.end(), bookMove);
         if (it != validMoves.end()) {
             std::cout << "Opening book move: " << (int)bookMove << " ["
-                      << (char)('A' + getMoveX(bookMove)) << (getMoveY(bookMove) + 1) << "] (from "
-                      << book->getTotalGames() << " games)" << std::endl;
+                << (char)('A' + getMoveX(bookMove)) << (getMoveY(bookMove) + 1) << "] (from "
+                << book->getTotalGames() << " games)" << std::endl;
             moveCount++;
             return bookMove;
         }
@@ -597,7 +616,7 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
     }
 
     std::cout << "AI chooses move: " << (int)bestMove << " [" << (char)('A' + getMoveX(bestMove))
-              << (getMoveY(bestMove) + 1) << "]" << std::endl;
+        << (getMoveY(bestMove) + 1) << "]" << std::endl;
 
     moveCount++;
     return bestMove;
@@ -607,8 +626,24 @@ void AIExtreme::getSearchStats(int& nodesSearched, int& maxDepth) const {
     if (engine) {
         nodesSearched = engine->getNodesSearched();
         maxDepth = engine->getMaxDepth();
-    } else {
+    }
+    else {
         nodesSearched = 0;
         maxDepth = 0;
     }
+}
+
+// Implementación de nuevos métodos para límite de nodos
+void AIExtreme::setNodeLimit(int limit) {
+    if (engine) {
+        engine->setMaxNodes(limit);
+        std::cout << "[AIExtreme] Node limit set to: " << limit << std::endl;
+    }
+}
+
+int AIExtreme::getNodeLimit() const {
+    if (engine) {
+        return engine->getMaxNodes();
+    }
+    return DEFAULT_MAX_NODES;
 }
