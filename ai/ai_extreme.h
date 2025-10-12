@@ -62,6 +62,7 @@ class AIExtreme : public AIInterface {
 // Search parameters
 #define MAX_SEARCH_DEPTH 12   // Maximum search depth
 #define TIME_LIMIT_MS 15000   // 15 seconds per move
+#define MAX_NODES 10000      // Maximum nodes to search
 #define ENDGAME_DEPTH 16      // Depth for endgame (when few discs remain)
 #define ENDGAME_THRESHOLD 12  // Switch to deeper search when <= 12 empty
 

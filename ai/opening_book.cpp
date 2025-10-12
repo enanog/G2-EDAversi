@@ -37,11 +37,14 @@ Move_t OpeningBook::decodeWThorMove(uint8_t wthorMove) const {
     if (wthorMove == 0)
         return MOVE_NONE;  // No move (game ended)
 
-    // WThor encoding: (row * 10 + col + 10)
-    // Decode: subtract 10, then extract row/col
-    int decoded = wthorMove - 10;
-    int row = decoded / 10;
-    int col = decoded % 10;
+    // WThor encoding: position = (row+1)*10 + (col+1)
+    // Examples:
+    //   A1 = 11, H1 = 18
+    //   A8 = 81, H8 = 88
+    //   D4 = 44, E4 = 54
+
+    int row = (wthorMove / 10) - 1;  // Get row (0-7)
+    int col = (wthorMove % 10) - 1;  // Get col (0-7)
 
     // Validate
     if (row < 0 || row >= 8 || col < 0 || col >= 8) {
@@ -70,11 +73,14 @@ void OpeningBook::addGame(const std::vector<Move_t>& moves, int blackScore) {
     board.black = 0;
     board.white = 0;
 
-    // Set up initial position
-    SET_BIT(board.black, coordsToMove(3, 4));  // d5
-    SET_BIT(board.black, coordsToMove(4, 3));  // e4
-    SET_BIT(board.white, coordsToMove(3, 3));  // d4
-    SET_BIT(board.white, coordsToMove(4, 4));  // e5
+    // Set up initial position (standard Reversi start)
+    // Board uses 0-indexed: coordsToMove(x, y) = x + y*8
+    //   D4 (3,3)=27=White, E4 (4,3)=28=Black
+    //   D5 (3,4)=35=Black,  E5 (4,4)=36=White
+    SET_BIT(board.black, 28);  // e4
+    SET_BIT(board.black, 35);  // d5
+    SET_BIT(board.white, 27);  // d4
+    SET_BIT(board.white, 36);  // e5
 
     PlayerColor_t player = PLAYER_BLACK;
 
@@ -195,6 +201,24 @@ int OpeningBook::loadWTBFile(const std::string& filename) {
     file.close();
 
     std::cout << "Loaded " << gamesLoaded << " games successfully." << std::endl;
+
+    // DEBUG: Print first few moves of first game to verify decoding
+    if (gamesLoaded > 0) {
+        std::cout << "[DEBUG] Sample moves from first game:" << std::endl;
+        // Re-open file to read first game
+        std::ifstream debugFile(filename, std::ios::binary);
+        debugFile.seekg(16, std::ios::beg);  // Skip header
+        uint8_t firstGame[68];
+        debugFile.read(reinterpret_cast<char*>(firstGame), 68);
+
+        for (int i = 8; i < 18 && firstGame[i] != 0; i++) {  // First 10 moves
+            Move_t move = decodeWThorMove(firstGame[i]);
+            std::cout << "  Move " << (i - 7) << ": WThor=" << (int)firstGame[i]
+                      << " -> Move_t=" << (int)move << " [" << (char)('A' + getMoveX(move))
+                      << (getMoveY(move) + 1) << "]" << std::endl;
+        }
+        debugFile.close();
+    }
 
     return gamesLoaded;
 }

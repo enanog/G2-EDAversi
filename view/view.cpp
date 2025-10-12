@@ -17,6 +17,7 @@
 #include "game_overlay.h"
 #include "menu_system.h"
 #include "raylib.h"
+#include <cmath>
 
  /**
   * @brief Initializes the game window and sets target FPS

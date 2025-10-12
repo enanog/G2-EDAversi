@@ -295,7 +295,7 @@ Move_t AIExtreme::SearchEngine::rootSearch(
     int bound = BOUND_UPPER;
 
     for (Move_t move : moves) {
-        if (isTimeUp())
+        if (isTimeUp() || nodesSearched >= MAX_NODES)
             break;
 
         PlayerColor_t nextPlayer = player;
@@ -348,8 +348,10 @@ int AIExtreme::SearchEngine::negamax(
         return score;
     }
 
-    if ((nodesSearched & 0x3FF) == 0 && isTimeUp()) {
-        return evaluator.evaluate(board, player);
+    if ((nodesSearched & 0x3FF) == 0) {
+        if (isTimeUp()){
+            return evaluator.evaluate(board, player);
+        }
     }
 
     MoveList moves;
@@ -391,6 +393,10 @@ int AIExtreme::SearchEngine::negamax(
     int bound = BOUND_UPPER;
 
     for (Move_t move : moves) {
+
+        if (nodesSearched >= MAX_NODES)
+            break;
+
         PlayerColor_t nextPlayer = player;
         uint64_t playerBB = getPlayerBitboard(board, player);
         uint64_t opponentBB = getOpponentBitboard(board, player);
@@ -473,6 +479,18 @@ int AIExtreme::SearchEngine::scoreMoveForOrdering(Move_t move,
 AIExtreme::AIExtreme() : moveCount(0) {
     engine = std::make_unique<SearchEngine>();
     book = std::make_unique<OpeningBook>(&engine->tt);  // Share TT with book
+
+    // Load opening book from local directory
+    std::string bookPath = "../WTH_2024.wtb";  // Same directory as executable
+
+    std::cout << "Loading opening book from: " << bookPath << std::endl;
+    int gamesLoaded = book->loadFile(bookPath);
+
+    if (gamesLoaded == 0) {
+        std::cerr << "Warning: Opening book not loaded. AI will use search for all moves."
+                  << std::endl;
+        std::cerr << "Expected file: " << bookPath << std::endl;
+    }
 }
 
 AIExtreme::~AIExtreme() = default;
@@ -487,6 +505,12 @@ int AIExtreme::loadOpeningBook(const std::string& path) {
 }
 
 Move_t AIExtreme::getBestMove(GameModel& model) {
+    // Reset move counter if it's the start of a new game (4 pieces on board)
+    int totalPieces = getDiscCount(model.board);
+    if (totalPieces == 4) {
+        moveCount = 0;
+    }
+
     Board_t board = model.board;
     PlayerColor_t player = model.currentPlayer;
 
