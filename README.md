@@ -45,19 +45,36 @@ de profundidad, el algoritmo intenta explorar todas posibles jugadas del Reversi
 a 10 elevado a la 28 jugadas posibles.
 
 
-[Enumera aquí las consideraciones que tomaste a la hora de implementar el algoritmo minimax.]
-
 ## Parte 3: Poda del árbol
+
+Como se mencionó en el apartado anterior, el algoritmo minimax sin restricción de profundidad no se llega
+a completar. Por lo tanto, se optó por aplicar dos técnicas distintas para optimizar el algoritmo.
 
 Las dificultades que utilizan el algoritmo minimax son medio y difícil. Ambas dificultades utilizan el mismo algoritmo, pero en 
 la dificultad media no se utiliza poda alfa-beta, mientras que en la dificultad difícil sí. Esto permite que la dificultad difícil 
 pueda analizar más niveles en el árbol de decisiones en el mismo tiempo, haciendo que la IA juegue de manera más óptima.
 
-Como se mencionó en el apartado anterior, el algoritmo minimax sin restricción de profundidad no se llega
-a completar. Por lo tanto, se 
+En el caso de la dificultad media, solo se aplicó una poda por profundidad, es decir, se analiza un número fijo de
+niveles en el árbol de decisiones. Esto limita la cantidad de jugadas que se consideran, haciendo que el algoritmo
+sea más rápido, pero también menos preciso. Como métrica de evaluación, se utilizó la diferencia entre la cantidad
+de fichas del jugador actual y la cantidad de fichas del oponente.
 
-(Las dificultades fácil y extremo se explican a detalle en la sección de bonus points.)
-[Justifica por qué el algoritmo minimax de la parte anterior no se completa. Consejo: determina la complejidad computacional.]
+En el caso de la dificultad difícil, se aplicó la poda alfa-beta, que es una técnica que reduce el número de nodos
+evaluados en el árbol de decisiones. La poda alfa-beta funciona manteniendo dos valores que representan los límites 
+inferior y superior de la evaluación del nodo. Si en algún momento se encuentra un nodo que no puede mejorar la evaluación 
+actual, se lo poda y no se evalúan sus hijos. La métrica de evaluación utilizada en este caso depende de cada espacio del
+tablero obtenido, y se le asigna un valor según su posición estratégica. Por ejemplo, las esquinas del tablero tienen un valor alto
+porque no pueden ser capturadas, mientras que las posiciones adyacentes a las esquinas tienen un valor bajo porque habilitan al 
+oponente a capturar la esquina.
+
+La complejidad computacional del algoritmo minimax sin poda es O(b^d), donde b es el factor de ramificación y d es la
+profundidad del árbol. Mientras que la complejidad computacional del algoritmo minimax con poda alfa-beta en el peor caso 
+sigue siendo O(b^d), pero en el mejor caso se reduce a O(b^(d/2)).
+
+La mejora entre estos 2 algoritmos es significativa, ya que la poda alfa-beta permite analizar más niveles en el mismo tiempo.
+En este caso, logramos que la dificultad normal analice 4 niveles del árbol de decisiones, mientras que la dificultad difícil
+puede analizar 8 niveles en un tiempo similar. Esto es una gran diferencia al momento de tomar la decisión más óptima.
+
 
 ## Documentación adicional
 
@@ -67,4 +84,18 @@ a completar. Por lo tanto, se
 
 ## Bonus points
 
-[Aquí.]
+Además de los requisitos básicos, se implementaron las siguientes características adicionales al programa:
+
+* Modos 1v1 y 1vIA: Se puede jugar contra otro jugador humano o contra la IA.
+* Selección de dificultad de IA: Se pueden elegir entre 4 niveles de dificultad (fácil, medio, difícil y extremo).
+* Dificultad extremo: para esta dificultad se implementaron diversas técnicas para optimizar las decisiones
+	- Algoritmo negamax con poda alfa-beta: reduce los nodos evaluados en el árbol de decisiones teniendo en cuenta
+	  la simetría del juego.
+	- Búsqueda incremental de profundidad: comienza evaluando con una profundidad baja al principio del juego, y la
+	  va incrementando a medida que avanza el juego.
+	- Tabla de transposición: almacena las evaluaciones de posiciones ya analizadas para evitar cálculos redundantes.
+	- Libro de aperturas: utiliza un conjunto predefinido de movimientos iniciales para optimizar las primeras jugadas.
+* Límite de nodos configurables: se puede establecer un límite en la cantidad de nodos que la IA puede evaluar por jugada.
+* Thread separado para la IA: la IA se ejecuta en un hilo separado para mantener la interfaz de usuario receptiva.
+* Optimización de bitmaps: se utilizaron operaciones a nivel de bits para mejorar la eficiencia en la generación de movimientos 
+  válidos, actualización del tablero, y conteo de fichas.
