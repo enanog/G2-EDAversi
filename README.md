@@ -2,10 +2,10 @@
 
 ## Integrantes del grupo y contribución al trabajo de cada integrante
 
-* Frigerio, Dylan: 
-* Petersen, Alex:
-* Rosa Fernandez, Enzo:
-* Valenzuela, Agustín:
+* Frigerio, Dylan: Interfaz de usuario, sistema de menús, integración visual y threading
+* Petersen, Alex: Motor del juego, sistema de movimientos válidos, lógica del tablero con bitboards
+* Rosa Fernandez, Enzo: Desarrollo del motor de IA y de la dificultad extremo.
+* Valenzuela, Agustín: Sistema de threading para IA, optimizaciones de rendimiento, integración de componentes
 
 ## Parte 1: Generación de movimientos válidos y algoritmo de jugada
 
@@ -78,16 +78,38 @@ puede analizar 8 niveles en un tiempo similar. Esto es una gran diferencia al mo
 
 ## Documentación adicional
 
+Motores de referencia:
 
+EDAX: Uno de los motores más potentes para Othello/Reversi, utilizado como referencia para técnicas avanzadas 
+de búsqueda y evaluación. 
+Link al motor EDAX: https://sensuikan1973.github.io/edax-reversi/
 
-[Aquí.]
+Investigación Académica:
+
+Resolución de Reversi: Paper académico que aborda técnicas de resolución completa y algoritmos avanzados para 
+el juego. 
+Paper en arXiv: https://arxiv.org/pdf/2310.19387
+
+Bases de Datos Profesionales:
+
+Base WThor: ase de datos oficial utilizada en torneos profesionales de Othello, con miles de partidas para 
+entrenamiento de sistemas de IA. 
+Base WThor: https://www.ffothello.org/informatique/la-base-wthor/
+
+Implementación de algoritmos de IA:
+Algoritmo Minimax: https://www-instructables-com.translate.goog/Othello-Artificial-Intelligence/?_x_tr_sl=en&_x_tr_tl=es&_x_tr_hl=es&_x_tr_pto=tc
+Uso de Claude/ChatGPT como Herramienta de Desarrollo de algoritmos, optimización de código, e interfaz gráfica.
 
 ## Bonus points
 
 Además de los requisitos básicos, se implementaron las siguientes características adicionales al programa:
 
 * Modos 1v1 y 1vIA: Se puede jugar contra otro jugador humano o contra la IA.
+
 * Selección de dificultad de IA: Se pueden elegir entre 4 niveles de dificultad (fácil, medio, difícil y extremo).
+  Esto también se puede hacer durante la partida desde el menú de configuración, pero cambia a partir del siguiente
+  turno de la IA.
+
 * Dificultad extremo: para esta dificultad se implementaron diversas técnicas para optimizar las decisiones
 	- Algoritmo negamax con poda alfa-beta: reduce los nodos evaluados en el árbol de decisiones teniendo en cuenta
 	  la simetría del juego.
@@ -95,7 +117,17 @@ Además de los requisitos básicos, se implementaron las siguientes característ
 	  va incrementando a medida que avanza el juego.
 	- Tabla de transposición: almacena las evaluaciones de posiciones ya analizadas para evitar cálculos redundantes.
 	- Libro de aperturas: utiliza un conjunto predefinido de movimientos iniciales para optimizar las primeras jugadas.
+	
 * Límite de nodos configurables: se puede establecer un límite en la cantidad de nodos que la IA puede evaluar por jugada.
+
 * Thread separado para la IA: la IA se ejecuta en un hilo separado para mantener la interfaz de usuario receptiva.
+
 * Optimización de bitmaps: se utilizaron operaciones a nivel de bits para mejorar la eficiencia en la generación de movimientos 
   válidos, actualización del tablero, y conteo de fichas.
+
+* Mejoras en la interfaz gráfica:
+	- Pantallas de victoria, empate y derrota personalizadas.
+	- Indicación visual de los movimientos válidos y la cantidad de fichas que se capturarían.
+	- Anuncio de que un jugador salteó su turno por no tener movimientos válidos.
+	- Menú inicial para seleccionar el modo de juego y la dificultad de la IA.
+	- Menú de configuración para ajustar el límite de nodos y otras opciones en partida.
