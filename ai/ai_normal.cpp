@@ -43,7 +43,7 @@ int AINormal::evaluateBoard(const GameModel& model, PlayerColor_t maximizingPlay
 int AINormal::minimax(GameModel& model, int depth, bool isMaximizing, PlayerColor_t maximizingPlayer) const {
     nodesExplored++;
 
-    // Check node limit (nuevo)
+    // Check node limit
     if (nodesExplored >= maxNodes) {
         return evaluateBoard(model, maximizingPlayer);
     }

@@ -237,14 +237,12 @@ Move_t TranspositionTable::getBestMove(uint64_t hash) const {
 
 void TranspositionTable::prefetch(uint64_t hash) const {
     size_t index = getIndex(hash);
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(_MSC_VER)
+#include <xmmintrin.h>
+_mm_prefetch(reinterpret_cast<const char*>(&table[index]), _MM_HINT_T0);
+#elif defined(__GNUC__) || defined(__clang__)
     __builtin_prefetch(&table[index], 0, 3);
-#elif defined(_MSC_VER)
-    // Visual Studio: use _mm_prefetch if available (SSE required)
-    #include <xmmintrin.h>
-    _mm_prefetch(reinterpret_cast<const char*>(&table[index]), _MM_HINT_T0);
 #else
-    // No prefetch available; do nothing
     (void)index;
 #endif
 }

@@ -175,14 +175,14 @@ public:
 
 // Piece-square table
 const int AIExtreme::Evaluator::pieceSquareTable[64] = {
-    100, -20, 10, 5,  5,  10, -20, 100, 
+    100, -20, 10,  5,  5, 10, -20, 100, 
     -20, -50, -2, -2, -2, -2, -50, -20,
-    10,  -2,  5,  1,  1,  5,  -2,  10,  
-    5,   -2,  1,  1,  1,  1,  -2,  5,
-    5,   -2,  1,  1,  1,  1,  -2,  5,   
-    10,  -2,  5,  1,  1,  5,  -2,  10,
+     10,  -2,  5,  1,  1,  5,  -2,  10,  
+      5,  -2,  1,  1,  1,  1,  -2,   5,
+      5,  -2,  1,  1,  1,  1,  -2,   5,   
+     10,  -2,  5,  1,  1,  5,  -2,  10,
     -20, -50, -2, -2, -2, -2, -50, -20, 
-    100, -20, 10, 5,  5,  10, -20, 100 };
+    100, -20, 10,  5,  5, 10, -20, 100 };
 
 // ============================================================================
 // SearchEngine Implementation
@@ -202,7 +202,6 @@ public:
         return maxDepthReached;
     }
 
-	// New methods for node limit management
     void setMaxNodes(int limit) {
         maxNodesLimit = (limit > 0) ? limit : DEFAULT_MAX_NODES;
     }
