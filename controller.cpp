@@ -21,8 +21,6 @@
 #include "ai/ai_factory.h"
 #include "view/view.h"
 #include "view/view_constants.h"
-#include "view/settings_overlay.h"
-#include "view/ui_components.h"
 #include "controller.h"
 
 static std::thread aiThread;
@@ -52,9 +50,7 @@ static bool aiEnabled = false;  // false => 1v1 mode
 // - scheduledDifficulty: difficulty scheduled to apply once AI finishes thinking (-1 = none)
 static int settingsPendingSelection = -1;
 static int scheduledDifficulty = -1;
-
-// NUEVO: Node limit temporal mientras el overlay está abierto
-static int pendingNodeLimit = -1;  // -1 = no hay cambio pendiente
+static int pendingNodeLimit = -1;
 
 // ---------------------------------------------------------------------------
 // AI thread worker
@@ -135,12 +131,8 @@ static void cancelAIIfRunning(GameModel& model) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Apply node limit to current AI
-// ---------------------------------------------------------------------------
-
 /**
- * @brief Aplica el límite de nodos configurado al AI actual
+ * @brief Applies currentNodeLimit to current AI instance (if any)
  */
 void applyNodeLimitToCurrentAI() {
     if (currentAI) {
@@ -152,10 +144,6 @@ void applyNodeLimitToCurrentAI() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Apply scheduled difficulty (if any) when safe
-// ---------------------------------------------------------------------------
-
 static void applyScheduledDifficultyIfAny() {
     // Called from main thread when it's safe to change AI (aiThreadStopped).
     if (scheduledDifficulty != -1) {
@@ -164,10 +152,6 @@ static void applyScheduledDifficultyIfAny() {
         changeAIDifficulty(pd);
     }
 }
-
-// ---------------------------------------------------------------------------
-// Check & apply completed AI move
-// ---------------------------------------------------------------------------
 
 /**
  * @brief Checks for and applies completed AI move
@@ -230,7 +214,6 @@ void initializeAI(AIDifficulty difficulty) {
     if (currentAI) {
         std::cout << "[Controller] AI ready: " << currentAI->getName() << std::endl;
 
-        // Aplicar el límite de nodos al AI recién creado
         applyNodeLimitToCurrentAI();
     }
     else {
@@ -254,7 +237,6 @@ void changeAIDifficulty(AIDifficulty difficulty) {
     currentDifficulty = difficulty;
     initializeAI(difficulty);
 
-    // Aplicar el límite de nodos al nuevo AI
     applyNodeLimitToCurrentAI();
 }
 
