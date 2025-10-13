@@ -202,7 +202,6 @@ Move_t AIHard::getBestMove(GameModel& model) {
     // Evaluate each move with alpha-beta search
     for (Move_t move : validMoves) {
         if (nodesExplored >= maxNodes) {
-            std::cout << "[AIHard] Node limit reached, stopping early" << std::endl;
             break;
         }
 
@@ -219,10 +218,6 @@ Move_t AIHard::getBestMove(GameModel& model) {
             bestMove = move;
         }
     }
-
-    std::cout << "[AIHard] Best move: " << (int)bestMove
-        << " (score: " << bestScore
-        << ", nodes: " << nodesExplored << ")" << std::endl;
 
     return bestMove;
 }

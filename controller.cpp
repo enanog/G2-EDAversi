@@ -65,8 +65,6 @@ static int pendingNodeLimit = -1;  // -1 = no hay cambio pendiente
  * @param modelPtr Pointer to game model for analysis
  */
 void aiWorkerFunction(GameModel* modelPtr) {
-    std::cout << "[AI Thread] Started thinking..." << std::endl;
-
     // Create thread-safe copy of model
     GameModel localModel;
     {
@@ -97,7 +95,6 @@ void aiWorkerFunction(GameModel* modelPtr) {
         modelPtr->aiThinking = false;
     }
 
-    std::cout << "[AI Thread] Finished!" << std::endl;
     aiThreadRunning = false;
 }
 
@@ -105,8 +102,6 @@ void aiWorkerFunction(GameModel* modelPtr) {
  * @brief Starts AI analysis in background thread
  */
 void startAIThinking(GameModel& model) {
-    std::cout << "[Main] Starting AI thinking..." << std::endl;
-
     if (!currentAI) {
         std::cerr << "[Main] ERROR: No AI initialized! Call initializeAI() first." << std::endl;
         return;
@@ -124,12 +119,10 @@ void startAIThinking(GameModel& model) {
     // Launch worker
     aiThread = std::thread(aiWorkerFunction, &model);
 
-    std::cout << "[Main] AI thread launched!" << std::endl;
 }
 
 static void cancelAIIfRunning(GameModel& model) {
     if (aiThreadRunning) {
-        std::cout << "[Controller] Cancelling AI move..." << std::endl;
         {
             std::lock_guard<std::mutex> lock(aiMutex);
             model.aiThinking = false;
@@ -152,8 +145,6 @@ static void cancelAIIfRunning(GameModel& model) {
 void applyNodeLimitToCurrentAI() {
     if (currentAI) {
         currentAI->setNodeLimit(currentNodeLimit);
-        std::cout << "[Controller] Node limit applied: " << currentNodeLimit
-            << " to " << currentAI->getName() << std::endl;
     }
     else {
         std::cerr << "[Controller] Warning: Cannot apply node limit, no AI initialized"
@@ -169,8 +160,6 @@ static void applyScheduledDifficultyIfAny() {
     // Called from main thread when it's safe to change AI (aiThreadStopped).
     if (scheduledDifficulty != -1) {
         AIDifficulty pd = static_cast<AIDifficulty>(scheduledDifficulty);
-        std::cout << "[Controller] Applying scheduled difficulty: "
-            << AIFactory::getDifficultyName(pd) << std::endl;
         scheduledDifficulty = -1;
         changeAIDifficulty(pd);
     }
@@ -196,8 +185,6 @@ bool checkAndApplyAIMove(GameModel& model) {
 
     // If AI finished and produced a move (not MOVE_NONE), apply it
     if (!isThinking && move != MOVE_NONE) {
-        std::cout << "[Main] AI finished! Applying move: " << (int)move << std::endl;
-
         bool moveApplied = playMove(model, move);
 
         // Clear stored move
@@ -216,7 +203,6 @@ bool checkAndApplyAIMove(GameModel& model) {
         applyScheduledDifficultyIfAny();
 
         if (moveApplied) {
-            std::cout << "[Main] Move applied successfully!" << std::endl;
             std::cout << "[Main] GameOver: " << model.gameOver
                 << ", Current player: " << (model.currentPlayer == PLAYER_BLACK ? "BLACK" : "WHITE")
                 << ", ShowPass: " << model.playedPass << std::endl;
@@ -301,14 +287,12 @@ void handleMainMenu(GameModel& model) {
 
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         if (isMousePointerOverMenu1v1Button()) {
-            std::cout << "[Menu] 1v1 mode selected (no AI)\n";
             aiEnabled = false;
             model.humanPlayer = PLAYER_BLACK; // default to black unless player chooses differently
             startModel(model);
             currentState = STATE_PLAYING;
         }
         else if (isMousePointerOverMenu1vAIButton()) {
-            std::cout << "[Menu] 1 vs AI mode selected\n";
             aiEnabled = true;
             if (!currentAI) {
                 initializeAI(currentDifficulty);
@@ -316,7 +300,6 @@ void handleMainMenu(GameModel& model) {
             currentState = STATE_PLAYING;
         }
         else if (isMousePointerOverMenuSettingsButton()) {
-            std::cout << "[Menu] Opening AI settings\n";
             currentState = STATE_AI_SETTINGS_MENU;
         }
     }
@@ -331,28 +314,22 @@ void handleAISettingsMenu() {
 
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         if (isMousePointerOverAIEasyButton()) {
-            std::cout << "[Settings] Easy AI selected\n";
             selectedOption = 0;
         }
         else if (isMousePointerOverAINormalButton()) {
-            std::cout << "[Settings] Normal AI selected\n";
             selectedOption = 1;
         }
         else if (isMousePointerOverAIHardButton()) {
-            std::cout << "[Settings] Hard AI selected\n";
             selectedOption = 2;
         }
         else if (isMousePointerOverAIExtremeButton()) {
-            std::cout << "[Settings] Extreme AI selected\n";
             selectedOption = 3;
         }
         else if (isMousePointerOverBackToMenuButton()) {
-            std::cout << "[Settings] Back to main menu (settings cancelled)\n";
             currentState = STATE_MAIN_MENU;
             selectedOption = -1;
         }
         else if (isMousePointerOverContinueToMenuButton()) {
-            std::cout << "[Settings] Settings confirmed, returning to main menu\n";
             if (selectedOption != -1) {
                 changeAIDifficulty(static_cast<AIDifficulty>(selectedOption));
             }
@@ -399,8 +376,6 @@ void handleSettingsOverlay(GameModel& model) {
                 if (aiThreadRunning) {
                     // schedule for when AI finishes
                     scheduledDifficulty = static_cast<int>(desired);
-                    std::cout << "[Settings] AI is thinking; scheduling difficulty change to "
-                        << AIFactory::getDifficultyName(desired) << std::endl;
                 }
                 else {
                     changeAIDifficulty(desired);
@@ -412,11 +387,6 @@ void handleSettingsOverlay(GameModel& model) {
 
                 if (!aiThreadRunning && currentAI) {
                     applyNodeLimitToCurrentAI();
-                    std::cout << "[Settings] Node limit confirmed: " << currentNodeLimit << std::endl;
-                }
-                else if (aiThreadRunning) {
-                    std::cout << "[Settings] Node limit confirmed: " << currentNodeLimit
-                        << " (will apply after current search)" << std::endl;
                 }
             }
 
@@ -428,7 +398,6 @@ void handleSettingsOverlay(GameModel& model) {
 
         // Back to main menu from overlay
         else if (isMousePointerOverAIMainMenuButton() || isMousePointerOverMainMenuButton()) {
-            std::cout << "[Settings] Returning to main menu\n";
             showSettingsOverlay = false;
             cancelAIIfRunning(model);
             currentState = STATE_MAIN_MENU;
@@ -438,7 +407,6 @@ void handleSettingsOverlay(GameModel& model) {
         }
         // Close overlay without applying (CANCELAR)
         else if (isMousePointerOverCloseAISettingsButton() || isMousePointerOverCloseSettingsButton()) {
-            std::cout << "[Settings] Closing settings (changes discarded)\n";
             showSettingsOverlay = false;
             settingsPendingSelection = -1;
             pendingNodeLimit = -1;
@@ -466,7 +434,6 @@ void handleSettingsOverlay(GameModel& model) {
 
     if (!aiThreadRunning && currentAI && currentNodeLimit != currentAI->getNodeLimit()) {
         applyNodeLimitToCurrentAI();
-        std::cout << "[Settings] Applying pending node limit after search completed" << std::endl;
     }
 }
 
@@ -482,8 +449,6 @@ void handleGameplay(GameModel& model) {
         double elapsed = GetTime() - passMessageStartTime;
         if (elapsed >= 1) {
             model.turnStartTime = GetTime();
-            std::cout << "[Main] Pass message cleared, resuming as "
-                << (model.currentPlayer == PLAYER_BLACK ? "BLACK" : "WHITE") << std::endl;
             model.playedPass = false;
             model.pauseTimers = false;
             passMessageStartTime = 0;
@@ -498,7 +463,6 @@ void handleGameplay(GameModel& model) {
     // Handle settings button
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         if (isMousePointerOverSettingsButton() && !showSettingsOverlay) {
-            std::cout << "[Game] Opening settings overlay\n";
             showSettingsOverlay = true;
             // initialize visual selection when opening overlay
             settingsPendingSelection = static_cast<int>(currentDifficulty);
@@ -511,12 +475,10 @@ void handleGameplay(GameModel& model) {
     if (model.gameOver && !showSettingsOverlay) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             if (isMousePointerOverPlayBlackButton()) {
-                std::cout << "[Main] Starting new game - Human plays BLACK" << std::endl;
                 model.humanPlayer = PLAYER_BLACK;
                 startModel(model);
             }
             else if (isMousePointerOverPlayWhiteButton()) {
-                std::cout << "[Main] Starting new game - Human plays WHITE" << std::endl;
                 model.humanPlayer = PLAYER_WHITE;
                 startModel(model);
             }
@@ -535,9 +497,6 @@ void handleGameplay(GameModel& model) {
 
                 auto it = std::find(validMoves.begin(), validMoves.end(), move);
                 if (it != validMoves.end()) {
-                    std::cout << "[Main] Player "
-                        << (model.currentPlayer == PLAYER_BLACK ? "BLACK" : "WHITE")
-                        << " plays move: " << (int)move << std::endl;
                     playMove(model, move);
                 }
             }
@@ -557,7 +516,6 @@ void handleGameplay(GameModel& model) {
 
                 auto it = std::find(validMoves.begin(), validMoves.end(), move);
                 if (it != validMoves.end()) {
-                    std::cout << "[Main] Human plays move: " << (int)move << std::endl;
                     playMove(model, move);
                 }
             }
@@ -566,34 +524,26 @@ void handleGameplay(GameModel& model) {
     else if (!showSettingsOverlay) {
         // AI player's turn
         if (checkAndApplyAIMove(model)) {
-            std::cout << "[Main] AI move processed, next player: "
-                << (model.currentPlayer == model.humanPlayer ? "HUMAN" : "AI")
-                << ", GameOver: " << model.gameOver << std::endl;
         }
         else if (!model.aiThinking && !model.gameOver) {
-            std::cout << "[Main] AI turn detected, verifying valid moves..." << std::endl;
 
             MoveList aiMoves;
             getValidMoves(model, aiMoves);
 
             if (aiMoves.empty()) {
-                std::cout << "[Main] WARNING: AI has no valid moves! Checking game over..." << std::endl;
 
                 model.currentPlayer = getOpponent(model.currentPlayer);
                 MoveList humanMoves;
                 getValidMoves(model, humanMoves);
 
                 if (humanMoves.empty()) {
-                    std::cout << "[Main] Neither player can move - GAME OVER" << std::endl;
                     model.gameOver = true;
                 }
                 else {
-                    std::cout << "[Main] AI passes turn to human" << std::endl;
                     model.playedPass = true;
                 }
             }
             else {
-                std::cout << "[Main] AI has " << aiMoves.size() << " valid moves, starting AI..." << std::endl;
                 startAIThinking(model);
             }
         }

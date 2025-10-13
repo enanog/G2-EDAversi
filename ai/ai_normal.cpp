@@ -122,7 +122,6 @@ Move_t AINormal::getBestMove(GameModel& model) {
 
     for (Move_t move : validMoves) {
         if (nodesExplored >= maxNodes) {
-            std::cout << "[AINormal] Node limit reached, stopping early" << std::endl;
             break;
         }
 
@@ -136,10 +135,6 @@ Move_t AINormal::getBestMove(GameModel& model) {
             bestMove = move;
         }
     }
-
-    std::cout << "[AINormal] Best move: " << (int)bestMove
-        << " (score: " << bestScore
-        << ", nodes: " << nodesExplored << ")" << std::endl;
 
     return bestMove;
 }

@@ -28,7 +28,6 @@ Move_t AIEasy::getBestMove(GameModel& model) {
     getValidMoves(model, validMoves);
 
     if (validMoves.empty()) {
-        std::cout << "[AIEasy] No valid moves available" << std::endl;
         return MOVE_NONE;
     }
 
@@ -37,9 +36,6 @@ Move_t AIEasy::getBestMove(GameModel& model) {
     size_t randomIndex = dist(rng);
 
     Move_t selectedMove = validMoves[randomIndex];
-
-    std::cout << "[AIEasy] Selected random move: " << (int)selectedMove
-        << " (out of " << validMoves.size() << " options)" << std::endl;
 
     return selectedMove;
 }

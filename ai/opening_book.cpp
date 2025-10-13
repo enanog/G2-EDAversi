@@ -84,17 +84,6 @@ void OpeningBook::addGame(const std::vector<Move_t>& moves, int blackScore) {
 
     PlayerColor_t player = PLAYER_BLACK;
 
-    // DEBUG: Print initial position hash (only for first game)
-    static bool debugPrinted = false;
-    if (!debugPrinted && !moves.empty()) {
-        uint64_t initialHash = tt->computeHash(board, player);
-        std::cout << "[DEBUG] Initial position hash in book: " << std::hex << initialHash
-                  << std::dec << std::endl;
-        std::cout << "[DEBUG] Black bits: " << board.black << ", White bits: " << board.white
-                  << std::endl;
-        debugPrinted = true;
-    }
-
     // Add up to BOOK_MAX_DEPTH moves
     int depth = std::min((int)moves.size(), BOOK_MAX_DEPTH);
     maxDepthStored = std::max(maxDepthStored, depth);
@@ -212,24 +201,6 @@ int OpeningBook::loadWTBFile(const std::string& filename) {
     file.close();
 
     std::cout << "Loaded " << gamesLoaded << " games successfully." << std::endl;
-
-    // DEBUG: Print first few moves of first game to verify decoding
-    if (gamesLoaded > 0) {
-        std::cout << "[DEBUG] Sample moves from first game:" << std::endl;
-        // Re-open file to read first game
-        std::ifstream debugFile(filename, std::ios::binary);
-        debugFile.seekg(16, std::ios::beg);  // Skip header
-        uint8_t firstGame[68];
-        debugFile.read(reinterpret_cast<char*>(firstGame), 68);
-
-        for (int i = 8; i < 18 && firstGame[i] != 0; i++) {  // First 10 moves
-            Move_t move = decodeWThorMove(firstGame[i]);
-            std::cout << "  Move " << (i - 7) << ": WThor=" << (int)firstGame[i]
-                      << " -> Move_t=" << (int)move << " [" << (char)('A' + getMoveX(move))
-                      << (getMoveY(move) + 1) << "]" << std::endl;
-        }
-        debugFile.close();
-    }
 
     return gamesLoaded;
 }

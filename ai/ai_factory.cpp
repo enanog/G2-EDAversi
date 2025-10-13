@@ -18,7 +18,6 @@
 #include <iostream>
 
 std::unique_ptr<AIInterface> AIFactory::createAI(AIDifficulty difficulty) {
-    std::cout << "[AIFactory] Creating AI: " << getDifficultyName(difficulty) << std::endl;
 
     switch (difficulty) {
     case AI_EASY:

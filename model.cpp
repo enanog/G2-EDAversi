@@ -374,7 +374,6 @@ bool playMove(GameModel& model, Move_t move) {
             // Both players have no moves -> game over
             model.gameOver = true;
             model.turnStartTime = 0.0;
-            std::cout << "[Model] Game over detected after both players passed." << std::endl;
             return true;
         }
 
