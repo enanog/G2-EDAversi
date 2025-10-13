@@ -175,10 +175,14 @@ public:
 
 // Piece-square table
 const int AIExtreme::Evaluator::pieceSquareTable[64] = {
-    100, -20, 10, 5,  5,  10, -20, 100, -20, -50, -2, -2, -2, -2, -50, -20,
-    10,  -2,  5,  1,  1,  5,  -2,  10,  5,   -2,  1,  1,  1,  1,  -2,  5,
-    5,   -2,  1,  1,  1,  1,  -2,  5,   10,  -2,  5,  1,  1,  5,  -2,  10,
-    -20, -50, -2, -2, -2, -2, -50, -20, 100, -20, 10, 5,  5,  10, -20, 100 };
+    100, -20, 10, 5,  5,  10, -20, 100, 
+    -20, -50, -2, -2, -2, -2, -50, -20,
+    10,  -2,  5,  1,  1,  5,  -2,  10,  
+    5,   -2,  1,  1,  1,  1,  -2,  5,
+    5,   -2,  1,  1,  1,  1,  -2,  5,   
+    10,  -2,  5,  1,  1,  5,  -2,  10,
+    -20, -50, -2, -2, -2, -2, -50, -20, 
+    100, -20, 10, 5,  5,  10, -20, 100 };
 
 // ============================================================================
 // SearchEngine Implementation
@@ -198,7 +202,7 @@ public:
         return maxDepthReached;
     }
 
-    // Nuevos m�todos para gesti�n de l�mite de nodos
+	// New methods for node limit management
     void setMaxNodes(int limit) {
         maxNodesLimit = (limit > 0) ? limit : DEFAULT_MAX_NODES;
     }
@@ -215,7 +219,7 @@ private:
     int maxDepthReached;
     Move_t pvMove;
 
-    int maxNodesLimit;  // L�mite din�mico de nodos
+    int maxNodesLimit;
 
     std::chrono::time_point<std::chrono::high_resolution_clock> searchStartTime;
     double timeLimit;
@@ -313,7 +317,7 @@ Move_t AIExtreme::SearchEngine::rootSearch(
     int bound = BOUND_UPPER;
 
     for (Move_t move : moves) {
-        if (isTimeUp() || nodesSearched >= maxNodesLimit)  // Usar l�mite din�mico
+        if (isTimeUp() || nodesSearched >= maxNodesLimit)
             break;
 
         PlayerColor_t nextPlayer = player;
@@ -366,9 +370,9 @@ int AIExtreme::SearchEngine::negamax(
         return score;
     }
 
-    // Verificar l�mite de nodos cada cierto n�mero de nodos
+	// Verify node limit every 1024 nodes
     if ((nodesSearched & 0x3FF) == 0) {
-        if (isTimeUp() || nodesSearched >= maxNodesLimit) {  // Usar l�mite din�mico
+        if (isTimeUp() || nodesSearched >= maxNodesLimit) {
             return evaluator.evaluate(board, player);
         }
     }
@@ -413,7 +417,7 @@ int AIExtreme::SearchEngine::negamax(
 
     for (Move_t move : moves) {
 
-        if (nodesSearched >= maxNodesLimit)  // Usar l�mite din�mico
+        if (nodesSearched >= maxNodesLimit)
             break;
 
         PlayerColor_t nextPlayer = player;
@@ -501,13 +505,13 @@ AIExtreme::AIExtreme() : moveCount(0) {
     engine = std::make_unique<SearchEngine>();
     book = std::make_unique<OpeningBook>(&engine->tt);  // Share TT with book
 
-    int gamesLoaded;
+    int gamesLoaded = -1;
     std::string bookPath;
 
     bookPath.reserve(48);
 
     for (uint16_t year = 2024; year >= BOOK_LIMIT_YEAR && gamesLoaded != 0; year--) {
-        std::format_to(std::back_inserter(bookPath), "../databases/WTH_{}.wtb", year);
+        std::format_to(std::back_inserter(bookPath), "./databases/WTH_{}.wtb", year);
         std::cout << "Loading opening book from: " << bookPath << std::endl;
         gamesLoaded = book->loadFile(bookPath);
 
@@ -539,10 +543,6 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
     // Detect new game: if very few pieces on board, it's early game
     if (totalPieces <= 6) {
         // This is early game - reset counter
-        if (moveCount != 0) {
-            std::cout << "[DEBUG] Early game detected (pieces=" << totalPieces
-                      << ", old moveCount=" << moveCount << "), resetting to 0" << std::endl;
-        }
         moveCount = 0;
     }
 
@@ -557,26 +557,11 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
     }
 
     if (validMoves.size() == 1) {
-        std::cout << "Only one move available: " << (int)validMoves[0] << std::endl;
         moveCount++;
         return validMoves[0];
     }
 
-    #ifdef DEBUGGING
-    // DEBUG: Print current position hash (only for first move)
-    if (moveCount == 0) {
-        uint64_t currentHash = engine->tt.computeHash(board, player);
-        std::cout << "[DEBUG] Current position hash in game: " << std::hex << currentHash
-                  << std::dec << std::endl;
-        std::cout << "[DEBUG] Black bits: " << board.black << ", White bits: " << board.white
-                  << std::endl;
-        std::cout << "[DEBUG] Current player: " << (player == PLAYER_BLACK ? "BLACK" : "WHITE")
-                  << std::endl;
-    }
-    #endif
-
     // Try opening book first
-    std::cout << "[DEBUG] Probing book with moveCount=" << moveCount << std::endl;
     Move_t bookMove = book->probe(board, player, moveCount);
     if (bookMove != MOVE_NONE) {
         // Verify book move is legal
@@ -624,16 +609,12 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
     }
 
     // Not in book - use search
-    std::cout << "Position not in book, searching..." << std::endl;
     double timeLimit = TIME_LIMIT_MS / 1000.0;
     Move_t bestMove = engine->search(board, player, timeLimit);
 
     if (bestMove == MOVE_NONE) {
         bestMove = validMoves[0];
     }
-
-    std::cout << "AI chooses move: " << (int)bestMove << " [" << (char)('A' + getMoveX(bestMove))
-        << (getMoveY(bestMove) + 1) << "]" << std::endl;
 
     moveCount++;
     return bestMove;
@@ -650,7 +631,7 @@ void AIExtreme::getSearchStats(int& nodesSearched, int& maxDepth) const {
     }
 }
 
-// Implementaci�n de nuevos m�todos para l�mite de nodos
+// Implementation of new methods for node limit
 void AIExtreme::setNodeLimit(int limit) {
     if (engine) {
         engine->setMaxNodes(limit);
