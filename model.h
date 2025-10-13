@@ -1,11 +1,11 @@
 /**
  * @brief Implements the Reversi game model
  * @author Marc S. Ressl
- * @modified:
+ * @modifiers:
  *			Agustin Valenzuela,
  *			Alex Petersen,
  *			Dylan Frigerio,
- *			Enzo Fernadez Rosas
+ *			Enzo Fernandez Rosas
  *
  * @copyright Copyright (c) 2023-2024
  */
@@ -39,33 +39,33 @@
 // Basic types and macros
 // ---------------------------------------------------------------------------
 
-/** Move representation (board square index 0..63) */
+/* Move representation (board square index 0..63) */
 typedef int8_t Move_t;
 #define MOVE_NONE ((Move_t)-1)
 #define MOVE_PASS ((Move_t)-2)
 
-/** Vector type for moves */
+/* Vector type for moves */
 typedef std::vector<Move_t> MoveList;
 
-/** Piece / square state */
+/* Piece / square state */
 typedef enum {
     STATE_BLACK = 0,
     STATE_WHITE = 1,
     STATE_EMPTY = 2
 } PieceState_t;
 
-/** Player color type (same values as piece state) */
+/* Player color type */
 typedef PieceState_t PlayerColor_t;
 #define PLAYER_BLACK STATE_BLACK
 #define PLAYER_WHITE STATE_WHITE
 
-/** Two-bitboard representation (black + white) */
+/* Two-bitboard representation (black + white) */
 typedef struct {
     uint64_t black;
     uint64_t white;
 } Board_t;
 
-/** Snapshot of board for make/unmake operations */
+/* Snapshot of board for make/unmake operations */
 typedef struct {
     uint64_t black;
     uint64_t white;
@@ -95,10 +95,6 @@ struct GameModel {
     bool pauseTimers;
 };
 
-// ---------------------------------------------------------------------------
-// Bitboard helper macros (low-level helpers used by implementation)
-// ---------------------------------------------------------------------------
-
 #define SET_BIT(bitmap, n) ((bitmap) |= (1ULL << (n)))
 #define GET_BIT(bitmap, n) (((bitmap) >> (n)) & 1ULL)
 #define CLEAR_BIT(bitmap, n) ((bitmap) &= ~(1ULL << (n)))
@@ -107,25 +103,25 @@ struct GameModel {
 enum { NW, N, NE, W, E, SW, S, SE, NONE };
 
 // ---------------------------------------------------------------------------
-// Coordinate conversion utilities (inline, zero-overhead)
+// Coordinate conversion utilities 
 // ---------------------------------------------------------------------------
 
-/** Convert x,y coordinates to Move_t index (0..63) */
+/* Convert x,y coordinates to Move_t index (0..63) */
 inline Move_t coordsToMove(int8_t x, int8_t y) {
     return static_cast<Move_t>(x + (y << 3));
 }
 
-/** Get X coordinate (0..7) from Move_t */
+/* Get X coordinate (0..7) from Move_t */
 inline int8_t getMoveX(Move_t move) {
     return static_cast<int8_t>(move & 7);
 }
 
-/** Get Y coordinate (0..7) from Move_t */
+/* Get Y coordinate (0..7) from Move_t */
 inline int8_t getMoveY(Move_t move) {
     return static_cast<int8_t>(move >> 3);
 }
 
-/** Check if move is in valid bounds (0..63) */
+/* Check if move is in valid bounds (0..63) */
 inline bool isMoveInBounds(Move_t move) {
     return move >= 0 && move < 64;
 }
@@ -206,20 +202,20 @@ void getValidMoves(const GameModel& model, MoveList& validMoves);
 bool playMove(GameModel& model, Move_t move);
 
 // ---------------------------------------------------------------------------
-// Core bitboard operations (pure functions)
+// Core bitboard operations
 // ---------------------------------------------------------------------------
 
 uint64_t getValidMovesBitmap(uint64_t player, uint64_t opponent);
-uint64_t calculateFlips(uint64_t player, uint64_t opponent, int8_t move);
+uint64_t calculateFlips(uint64_t player, uint64_t opponent, Move_t move);
 
 int countBits(uint64_t bitmap);
 Move_t bitScanForward(uint64_t bb);
 
 // ---------------------------------------------------------------------------
-// AI / search helpers (pure / read-only where possible)
+// AI / search helpers
 // ---------------------------------------------------------------------------
 
-void getValidMovesAI(const Board_t& board, PlayerColor_t player, std::vector<Move_t>& moves);
+void getValidMovesAI(const Board_t& board, PlayerColor_t player, MoveList& moves);
 bool hasValidMoves(const Board_t& board, PlayerColor_t player);
 bool isTerminal(const Board_t& board, PlayerColor_t player);
 int getScoreDiff(const Board_t& board, PlayerColor_t player);
@@ -284,7 +280,7 @@ inline bool boardsEqual(const Board_t& a, const Board_t& b) {
 }
 
 // ---------------------------------------------------------------------------
-// Bitboard masks (constants)
+// Bitboard masks
 // ---------------------------------------------------------------------------
 
 #define CORNERS    0x8100000000000081ULL

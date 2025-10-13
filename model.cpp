@@ -2,10 +2,10 @@
  * @brief Implements the Reversi game model
  * @author Marc S. Ressl
  * @modifiers:
- *          Agustin Valenzuela,
- *          Alex Petersen,
- *          Dylan Frigerio,
- *          Enzo Fernandez Rosas
+ *			Agustin Valenzuela,
+ *			Alex Petersen,
+ *			Dylan Frigerio,
+ *			Enzo Fernandez Rosas
  *
  * @copyright Copyright (c) 2023-2024
  */
@@ -25,7 +25,7 @@
 #define DIRECTION_COUNT 8
 
 // ---------------------------------------------------------------------------
-// Private helpers (anonymous namespace)
+// Private helpers
 // ---------------------------------------------------------------------------
 
 namespace {
@@ -143,7 +143,7 @@ namespace {
         return shiftFunc(candidates) & empty;
     }
 
-} // namespace (private)
+}
 
 // ---------------------------------------------------------------------------
 // Core bitboard operations
@@ -184,10 +184,10 @@ uint64_t calculateFlips(uint64_t player, uint64_t opponent, Move_t move) {
 }
 
 int countBits(uint64_t bitmap) {
-#if defined(__GNUC__) || defined(__clang__)
-    return __builtin_popcountll(bitmap);
-#elif defined(_MSC_VER)
+#if defined(_MSC_VER)
     return static_cast<int>(__popcnt64(bitmap));
+#elif defined(__GNUC__) || defined(__clang__)
+    return __builtin_popcountll(bitmap);
 #else
     int count = 0;
     while (bitmap) {
@@ -386,7 +386,7 @@ bool playMove(GameModel& model, Move_t move) {
 }
 
 // ---------------------------------------------------------------------------
-// AI helper functions (search utilities)
+// AI helper functions
 // ---------------------------------------------------------------------------
 
 void getValidMovesAI(const Board_t& board, PlayerColor_t player, MoveList& moves) {
