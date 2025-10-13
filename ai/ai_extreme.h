@@ -7,6 +7,8 @@
  *          Dylan Frigerio,
  *          Enzo Fernandez Rosas
  *
+ * @source https://www.ffothello.org/informatique/la-base-wthor/ (Game Databases)
+ * 
  * @copyright Copyright (c) 2023-2024
  */
 
@@ -53,8 +55,6 @@ public:
     }
 
     virtual void getSearchStats(int& nodesSearched, int& maxDepth) const override;
-
-    // Implementación de gestión de límite de nodos
     virtual void setNodeLimit(int limit) override;
     virtual int getNodeLimit() const override;
 };
