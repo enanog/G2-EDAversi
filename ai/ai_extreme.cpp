@@ -506,21 +506,23 @@ AIExtreme::AIExtreme() : moveCount(0) {
     book = std::make_unique<OpeningBook>(&engine->tt);  // Share TT with book
 
     int gamesLoaded = -1;
-    std::string bookPath;
+    
+    fs::path path = fs::current_path();
+    for (int i = 0; i < 6 && !fs::exists(path / "databases"); ++i)
+        path = path.parent_path();
 
-    bookPath.reserve(48);
+    fs::path dbPath = path / "databases";
 
     for (uint16_t year = 2024; year >= BOOK_LIMIT_YEAR && gamesLoaded != 0; year--) {
-        std::format_to(std::back_inserter(bookPath), "./databases/WTH_{}.wtb", year);
-        std::cout << "Loading opening book from: " << bookPath << std::endl;
-        gamesLoaded = book->loadFile(bookPath);
+        fs::path filePath = dbPath / std::format("WTH_{}.wtb", year);
+        
+        gamesLoaded = book->loadFile(filePath.string());
 
         if (gamesLoaded == 0) {
             std::cerr << "Warning: Opening book not loaded. AI will use search for all moves."
                       << std::endl;
-            std::cerr << "Expected file: " << bookPath << std::endl;
+            std::cerr << "Expected file: " << filePath.string() << std::endl;
         }
-        bookPath.clear();
     }
 }
 
