@@ -14,7 +14,6 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <format>
 #include <iostream>
 #include <limits>
 
@@ -31,6 +30,9 @@ namespace fs = std::filesystem;
 
 // L�mite de nodos por defecto - ahora configurable en runtime
 static const int DEFAULT_MAX_NODES = 500000;
+
+// Book year limit to stop looking for in the database folder
+#define BOOK_LIMIT_YEAR 1977
 
 #define INFINITY_SCORE 1000000
 #define WIN_SCORE 100000
@@ -495,11 +497,10 @@ int AIExtreme::SearchEngine::scoreMoveForOrdering(Move_t move,
 // AIExtreme Main Implementation
 // ============================================================================
 
-#define BOOK_LIMIT_YEAR 1977
-
 AIExtreme::AIExtreme() : moveCount(0) {
     engine = std::make_unique<SearchEngine>();
     book = std::make_unique<OpeningBook>(&engine->tt);  // Share TT with book
+
     int gamesLoaded;
     std::string bookPath;
 
@@ -516,10 +517,6 @@ AIExtreme::AIExtreme() : moveCount(0) {
             std::cerr << "Expected file: " << bookPath << std::endl;
         }
         bookPath.clear();
-    if (gamesLoaded == 0) {
-        std::cerr << "Warning: Opening book not loaded. AI will use search for all moves."
-            << std::endl;
-        std::cerr << "Expected file: " << bookPath << std::endl;
     }
 }
 
@@ -552,7 +549,6 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
     Board_t board = model.board;
     PlayerColor_t player = model.currentPlayer;
 
-
     std::vector<Move_t> validMoves;
     getValidMovesAI(board, player, validMoves);
 
@@ -566,10 +562,22 @@ Move_t AIExtreme::getBestMove(GameModel& model) {
         return validMoves[0];
     }
 
+    #ifdef DEBUGGING
+    // DEBUG: Print current position hash (only for first move)
+    if (moveCount == 0) {
+        uint64_t currentHash = engine->tt.computeHash(board, player);
+        std::cout << "[DEBUG] Current position hash in game: " << std::hex << currentHash
+                  << std::dec << std::endl;
+        std::cout << "[DEBUG] Black bits: " << board.black << ", White bits: " << board.white
+                  << std::endl;
+        std::cout << "[DEBUG] Current player: " << (player == PLAYER_BLACK ? "BLACK" : "WHITE")
+                  << std::endl;
+    }
+    #endif
+
     // Try opening book first
     std::cout << "[DEBUG] Probing book with moveCount=" << moveCount << std::endl;
     Move_t bookMove = book->probe(board, player, moveCount);
-    // Move_t bookMove = book->probe(board, player, moveCount);
     if (bookMove != MOVE_NONE) {
         // Verify book move is legal
         auto it = std::find(validMoves.begin(), validMoves.end(), bookMove);
@@ -640,21 +648,6 @@ void AIExtreme::getSearchStats(int& nodesSearched, int& maxDepth) const {
         nodesSearched = 0;
         maxDepth = 0;
     }
-}
-
-// Implementaci�n de nuevos m�todos para l�mite de nodos
-void AIExtreme::setNodeLimit(int limit) {
-    if (engine) {
-        engine->setMaxNodes(limit);
-        std::cout << "[AIExtreme] Node limit set to: " << limit << std::endl;
-    }
-}
-
-int AIExtreme::getNodeLimit() const {
-    if (engine) {
-        return engine->getMaxNodes();
-    }
-    return DEFAULT_MAX_NODES;
 }
 
 // Implementaci�n de nuevos m�todos para l�mite de nodos
